@@ -169,4 +169,3 @@ test_dset = build_neurovault_studyset_from_ids(
     output_studyset='neurovault_test.pkl.gz',
     batch_size=50
 )
-# 正式全量：将 all_ids[:200] 替换为 all_ids
