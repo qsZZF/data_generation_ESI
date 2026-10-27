@@ -63,7 +63,8 @@ def asset_identity(simulator):
 def generator_identity():
     folder = Path(__file__).resolve().parent
     return {"files": {name: _digest(folder/name) for name in
-                      ("g1_simulation_core.py", "spatial.py", "training_recipes.py", "noise_covariance.py")},
+                      ("g1_simulation_core.py", "spatial.py", "training_recipes.py", "noise_covariance.py",
+                       "geometry.py", "spectral.py")},
             "python": platform.python_version(), "numpy": np.__version__, "scipy": scipy.__version__}
 
 

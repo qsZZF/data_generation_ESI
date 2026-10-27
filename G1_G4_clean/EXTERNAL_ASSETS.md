@@ -31,6 +31,13 @@
 
 ## 已知方法边界
 
+G1 LBO 模式另外需要基底缓存：在已配置当前 Brainstorm cortex 后，运行
+`python scripts/prepare_g1_lbo.py --modes 256`，写入 `Anatomy/G1_LBO/`。
+网络模式还需当前网格对齐的 `projected_source_priors/fsaverage5_20k/` 中的 signed_maxabs NPZ。
+这些二进制资产不随代码上传，不能直接用 Nilearn 顶点顺序替换。
+真实信号验证脚本可下载一个小型官方 PhysioNet 子集，保存原始 EDF 的 URL、许可和 SHA256；
+完整的 EEGMAT 对照还需要原 G4 流程已准备的 arithmetic 导出。
+
 - AAL78是已有fsaverage5派生皮层atlas；其边界含名义MNI映射近似。
 - AAL TVB传导长度来自区域质心距离代理，不是实测纤维长度。
 - G3是TVB单分支JR，G4是双时间尺度JR；不能直接混用参数文件。

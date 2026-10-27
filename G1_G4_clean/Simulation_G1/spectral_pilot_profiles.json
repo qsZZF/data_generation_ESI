@@ -1,0 +1,75 @@
+{
+  "eegmat_rest_candidate": {
+    "n_modes": 256,
+    "network_fraction": 0.0,
+    "temporal_exponent": 1.5,
+    "alpha_power_ratio": 0.5,
+    "alpha_hz": 10.5,
+    "alpha_width_hz": 2.0,
+    "spatial_length_mm": 20.0,
+    "spatial_exponent": 2.0,
+    "scenario": "rest",
+    "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz"
+  },
+  "physionet_eyes_open_candidate": {
+    "n_modes": 256,
+    "network_fraction": 0.0,
+    "temporal_exponent": 1.5,
+    "alpha_power_ratio": 0.0,
+    "alpha_hz": 9.0,
+    "alpha_width_hz": 2.0,
+    "spatial_length_mm": 20.0,
+    "spatial_exponent": 2.0,
+    "scenario": "rest",
+    "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz"
+  },
+  "physionet_eyes_closed_candidate": {
+    "n_modes": 256,
+    "network_fraction": 0.0,
+    "temporal_exponent": 2.0,
+    "alpha_power_ratio": 0.5,
+    "alpha_hz": 10.5,
+    "alpha_width_hz": 2.0,
+    "spatial_length_mm": 20.0,
+    "spatial_exponent": 2.0,
+    "scenario": "rest",
+    "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz"
+  },
+  "physionet_cue_erp_candidate": {
+    "n_modes": 256,
+    "network_fraction": 0.0,
+    "temporal_exponent": 1.5,
+    "alpha_power_ratio": 0.5,
+    "alpha_hz": 10.5,
+    "alpha_width_hz": 2.0,
+    "spatial_length_mm": 20.0,
+    "spatial_exponent": 2.0,
+    "scenario": "erp",
+    "event_onset_s": 0.0,
+    "event_duration_s": 2.5,
+    "erp_amplitude": 0.5,
+    "erp_latency_s": 0.3,
+    "erp_width_s": 0.06,
+    "erp_latency_jitter_s": 0.04,
+    "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz"
+  },
+  "physionet_cue_ersp_candidate": {
+    "n_modes": 256,
+    "network_fraction": 0.5,
+    "temporal_exponent": 1.5,
+    "alpha_power_ratio": 0.5,
+    "alpha_hz": 10.5,
+    "alpha_width_hz": 2.0,
+    "spatial_length_mm": 20.0,
+    "spatial_exponent": 2.0,
+    "scenario": "ersp",
+    "event_onset_s": 0.0,
+    "event_duration_s": 3.0,
+    "ersp_depth": -0.1,
+    "network_indices": [
+      0
+    ],
+    "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz",
+    "network_path": "projected_source_priors/fsaverage5_20k/neuro_motifs/neuro_motifs_fsaverage5_20k_source_priors_signed_maxabs.npz"
+  }
+}

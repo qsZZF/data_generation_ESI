@@ -75,10 +75,16 @@ class G1SimulationConfig:
     patch_gains: list[float] | None = None
     sensor_noise_peak_ratio: float | None = None
     baseline_duration_s: float = 2.0
+    source_model: str = 'patch'
+    spectral: dict[str, Any] = field(default_factory=dict)
 
     def validate_recipe(self) -> None:
         """Validate opt-in replay fields without changing legacy RNG behavior."""
         baseline_sample_count(self.baseline_duration_s, self.srate)
+        if self.source_model not in ('patch', 'lbo', 'lbo_network'):
+            raise ValueError('source_model must be patch, lbo or lbo_network')
+        if self.source_model == 'patch' and self.spectral:
+            raise ValueError('spectral settings require source_model=lbo or lbo_network')
         if self.component_seeds is not None:
             expected = {"spatial", "waveform", "gain", "background", "sensor"}
             if not isinstance(self.component_seeds, dict) or set(self.component_seeds) != expected:
@@ -800,6 +806,18 @@ class G1SourceSimulator:
     def _generate_source_components(self, config: G1SimulationConfig) -> tuple[Array, dict[str, Any], Array | None, Array | None]:
         """Generate baseline and event background jointly with common spatial mixing."""
         config.validate_recipe()
+        if config.source_model != 'patch':
+            try:
+                from .spectral import generate_source_components
+            except ImportError:
+                from spectral import generate_source_components
+            source, details, background, baseline = generate_source_components(self, config)
+            metadata = {**asdict(config), **details, 'generator_type': 'G1_spectral',
+                        'storage_policy': 'metadata_first', 'n_sources': self.n_sources,
+                        'n_sensors': self.n_sensors, 'seed_vertices': [], 'patches': [],
+                        'active_vertices': details['active_vertices'],
+                        'source_background_saved': background is not None}
+            return source, _json_safe(metadata), background, baseline
         rng = np.random.default_rng(config.random_seed)
         ts = TimeSeriesGenerator(config.srate, config.time_window, rng)
         source = np.zeros((self.n_sources, ts.n_time), dtype=np.float32)
@@ -883,7 +901,7 @@ class G1SourceSimulator:
         """
         baseline_samples = baseline_sample_count(config.baseline_duration_s, config.srate)
         baseline_background = None
-        if config.source_snr_db is not None and config.source_background_type is not None:
+        if config.source_model != 'patch' or (config.source_snr_db is not None and config.source_background_type is not None):
             source, meta, source_background, baseline_background = self._generate_source_components(config)
         else:
             source, meta = self.generate_source(config)

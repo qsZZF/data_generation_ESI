@@ -6,6 +6,9 @@
 
 ## 目录与入口
 
+G1 现支持皮层 LBO / LBO＋网络图的 rest、ERP、ERSP 生成，以及小规模真实 EEG 特征对照。
+调用和候选配置的适用范围见 [G1 使用指南](Simulation_G1/G1_usage_guide.md)。
+
 每个新生成的 sensor 样本附带独立 baseline 和由它估计的默认噪声协方差；活动段成分真值
 只作为 `oracle_noise_covariance` 诊断字段。详见 [baseline 与白化说明](NMM_USAGE.md#per-sample-baseline-covariance-for-esi-whitening)。
 

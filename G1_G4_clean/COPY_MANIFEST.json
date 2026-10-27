@@ -43,9 +43,9 @@
     },
     "simulate_source_sensor.py": {
       "original": "simulate_source_sensor.py",
-      "original_sha256": "0d219e5cacb8e3626ccfbffbb4c6143f5204936dcbd6f1f2905f313006ad7099",
-      "copied_sha256": "0d219e5cacb8e3626ccfbffbb4c6143f5204936dcbd6f1f2905f313006ad7099",
-      "bytes": 31802,
+      "original_sha256": "5835ad760b5d1ecfd5154a112594d9013afaf338c5b3d3b91dc3109963357bc3",
+      "copied_sha256": "5835ad760b5d1ecfd5154a112594d9013afaf338c5b3d3b91dc3109963357bc3",
+      "bytes": 32319,
       "byte_identical_to_original": true,
       "changes": []
     },
@@ -59,17 +59,17 @@
     },
     "Simulation_G1/g1_simulation_core.py": {
       "original": "Simulation_G1/g1_simulation_core.py",
-      "original_sha256": "e4c6b4f9e11ab0f07f127c30882ee08dcd65cd03a87a12c2ed7ec08b43f817d2",
-      "copied_sha256": "e4c6b4f9e11ab0f07f127c30882ee08dcd65cd03a87a12c2ed7ec08b43f817d2",
-      "bytes": 89119,
+      "original_sha256": "9af82da428be4c4ee671b61adb912432aba5fdcb5e31d68065cef66f7f050f02",
+      "copied_sha256": "9af82da428be4c4ee671b61adb912432aba5fdcb5e31d68065cef66f7f050f02",
+      "bytes": 90337,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G1/G1_usage_guide.md": {
       "original": "Simulation_G1/G1_usage_guide.md",
-      "original_sha256": "250eb997560d1514093a0492f1378eac6446a5701ffe6a1460c8b432a0a00c55",
-      "copied_sha256": "4f37ff33295e6b27ec0c03054cbf3e8893ee62498b96d1271948cdb258572925",
-      "bytes": 16675,
+      "original_sha256": "9a11716646e782f658a849d0dff7e68b4d2be813a3a39a8dc436c29d59f0a06b",
+      "copied_sha256": "a821f7e0d4b35806d3fbc549db11d4476dec1ceef5e85a97255f7b527fe1625c",
+      "bytes": 24372,
       "byte_identical_to_original": false,
       "changes": [
         "Remove reference to excluded historical design plan.",
@@ -598,9 +598,9 @@
     },
     "Simulation_G1/training_recipes.py": {
       "original": "Simulation_G1/training_recipes.py",
-      "original_sha256": "6a75c37fd41b983a7ade8948ba5249511b9520dc68044bc2f2b38349f4c7a6b2",
-      "copied_sha256": "6a75c37fd41b983a7ade8948ba5249511b9520dc68044bc2f2b38349f4c7a6b2",
-      "bytes": 19995,
+      "original_sha256": "2810416ca6477be8207edf5a60a4c0773e7f04c7a47063ba6993ec53c34209f4",
+      "copied_sha256": "2810416ca6477be8207edf5a60a4c0773e7f04c7a47063ba6993ec53c34209f4",
+      "bytes": 20048,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -747,21 +747,133 @@
       "copied_sha256": "8abc8b3373abc33ec1b60949970197a433584d2515609db51c41a7e3536bbbb6",
       "bytes": 3907,
       "byte_identical_to_original": true
+    },
+    "Simulation_G1/geometry.py": {
+      "original": "Simulation_G1/geometry.py",
+      "changes": [],
+      "original_sha256": "3916fde1f9ab58b037d44e789cfce604388446b3b76c2b10e3dcb39d677bab4a",
+      "copied_sha256": "3916fde1f9ab58b037d44e789cfce604388446b3b76c2b10e3dcb39d677bab4a",
+      "bytes": 12010,
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/spectral.py": {
+      "original": "Simulation_G1/spectral.py",
+      "changes": [],
+      "original_sha256": "7da4271b4a3ba9e6600600edfb62250f0bc5c8216599bb83015b350a6f467177",
+      "copied_sha256": "7da4271b4a3ba9e6600600edfb62250f0bc5c8216599bb83015b350a6f467177",
+      "bytes": 18741,
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/spectral_metrics.py": {
+      "original": "Simulation_G1/spectral_metrics.py",
+      "changes": [],
+      "original_sha256": "7d15e355a3b803255d399aa69258fe66724425b6f6b74a8c5f56bf8bbd01ae79",
+      "copied_sha256": "7d15e355a3b803255d399aa69258fe66724425b6f6b74a8c5f56bf8bbd01ae79",
+      "bytes": 9677,
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/spectral_rest.example.json": {
+      "original": "Simulation_G1/spectral_rest.example.json",
+      "changes": [],
+      "original_sha256": "5fd3439bd023aa5852f6d6752385de79fbf72310b988a956f5ad17d70a74a802",
+      "copied_sha256": "5fd3439bd023aa5852f6d6752385de79fbf72310b988a956f5ad17d70a74a802",
+      "bytes": 283,
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/spectral_pilot_profiles.json": {
+      "original": "Simulation_G1/spectral_pilot_profiles.json",
+      "changes": [],
+      "original_sha256": "d8970455325b05ffb3f7c93d1c8e43fd9b787305594b7295b51e27c2b5a6945b",
+      "copied_sha256": "d8970455325b05ffb3f7c93d1c8e43fd9b787305594b7295b51e27c2b5a6945b",
+      "bytes": 2192,
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_g1_lbo.py": {
+      "original": "scripts/prepare_g1_lbo.py",
+      "changes": [],
+      "original_sha256": "a75c483c40317e73f006942ecbe88a28e3d7469f26332e9dd6e3c447575fb3cd",
+      "copied_sha256": "a75c483c40317e73f006942ecbe88a28e3d7469f26332e9dd6e3c447575fb3cd",
+      "bytes": 1763,
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_g1_validation_eeg.py": {
+      "original": "scripts/prepare_g1_validation_eeg.py",
+      "changes": [],
+      "original_sha256": "5b7fbef765518dccb93e31e60c5228d518f574a193a2296f095657228a0759db",
+      "copied_sha256": "5b7fbef765518dccb93e31e60c5228d518f574a193a2296f095657228a0759db",
+      "bytes": 10635,
+      "byte_identical_to_original": true
+    },
+    "scripts/evaluate_g1_spectral.py": {
+      "original": "scripts/evaluate_g1_spectral.py",
+      "changes": [],
+      "original_sha256": "5879a4b349c93c015ac3354c18317aa18bc81577b12024e9683b9e1d75797027",
+      "copied_sha256": "5879a4b349c93c015ac3354c18317aa18bc81577b12024e9683b9e1d75797027",
+      "bytes": 22717,
+      "byte_identical_to_original": true
+    },
+    "scripts/plot_g1_spectral_validation.py": {
+      "original": "scripts/plot_g1_spectral_validation.py",
+      "changes": [],
+      "original_sha256": "57f1cf1fdaad7bcba9b0cbc57ed4f445de7d1f9ccb6f343b877ec5184b9379b0",
+      "copied_sha256": "57f1cf1fdaad7bcba9b0cbc57ed4f445de7d1f9ccb6f343b877ec5184b9379b0",
+      "bytes": 5108,
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_geometry.py": {
+      "original": "tests/test_g1_geometry.py",
+      "changes": [],
+      "original_sha256": "855c405e4dc5674c86561c14ad7542e63fee4f0d2c79107551163c567771474c",
+      "copied_sha256": "855c405e4dc5674c86561c14ad7542e63fee4f0d2c79107551163c567771474c",
+      "bytes": 5971,
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_spectral.py": {
+      "original": "tests/test_g1_spectral.py",
+      "changes": [],
+      "original_sha256": "3414f22522c5ce19e06e9950d91e8426524984926eb2b6ad860f22124cb3bb67",
+      "copied_sha256": "3414f22522c5ce19e06e9950d91e8426524984926eb2b6ad860f22124cb3bb67",
+      "bytes": 16860,
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_spectral_metrics.py": {
+      "original": "tests/test_g1_spectral_metrics.py",
+      "changes": [],
+      "original_sha256": "4f897924f922bd5b295d012aca39e862650fbdea43b8bf57ddfc2163e5c199d4",
+      "copied_sha256": "4f897924f922bd5b295d012aca39e862650fbdea43b8bf57ddfc2163e5c199d4",
+      "bytes": 6560,
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_spectral_cli.py": {
+      "original": "tests/test_g1_spectral_cli.py",
+      "changes": [],
+      "original_sha256": "7ad3396361a8626326a840b4560a0c9f67c18f2cd12eedfae5427328e76740de",
+      "copied_sha256": "7ad3396361a8626326a840b4560a0c9f67c18f2cd12eedfae5427328e76740de",
+      "bytes": 1242,
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_validation_data.py": {
+      "original": "tests/test_g1_validation_data.py",
+      "changes": [],
+      "original_sha256": "2f7632271e3741a14a18725adcad20afefa57e70386948c41911d6c78a630ccc",
+      "copied_sha256": "2f7632271e3741a14a18725adcad20afefa57e70386948c41911d6c78a630ccc",
+      "bytes": 1822,
+      "byte_identical_to_original": true
     }
   },
-  "completed_at": "2026-10-27T16:38:07.369006+00:00",
+  "completed_at": "2026-10-27T19:55:32.462091+00:00",
   "added_files": {
     ".gitignore": {
-      "sha256": "c712bb3c73cfa42d7b32a73170404d135988f297424ecdf6a2799faed7dfd074",
-      "bytes": 142
+      "sha256": "24a43e8fc01e1cfb27d1a2635a7b5330a58a5a8537450ff4e76dcbd9cb82d1cf",
+      "bytes": 166
     },
     "EXTERNAL_ASSETS.md": {
-      "sha256": "4850fd1faed8b16bafe492e428f095067068ca2403ce8b927b42eff596651316",
-      "bytes": 2562
+      "sha256": "f0897d3c8bf2d8ba2058914ea4c67aa333ea15818b0050d22c229e74516a3ba0",
+      "bytes": 3125
     },
     "README.md": {
-      "sha256": "053fd1c92760e282e196942c6e2b93d6eff448128ab810e309dc3fcc0b318c97",
-      "bytes": 4089
+      "sha256": "056c50234c0e57c9bc1f66ab1604e525d20321d3ffa1729dd2c2f0e60e2ab224",
+      "bytes": 4297
     },
     "requirements.txt": {
       "sha256": "0a70ba3e8774da01cfa4f378ff0570084a6b00a83cdadd060e85563fa9ff3235",
@@ -776,8 +888,8 @@
       "bytes": 420
     },
     "VALIDATION.md": {
-      "sha256": "bc749d80d345fcaba12961b2e3e6131576193849dba9e41503404920522976af",
-      "bytes": 11556
+      "sha256": "fd2dc1f4f0ef8746c158b52a0316940e12a466647fd00c989be2a70ea0417e96",
+      "bytes": 13859
     },
     ".gitattributes": {
       "sha256": "8a341e319197a1cb2db9b02b47a1c833918873ca69de24f5010697efe2aa0427",
@@ -785,7 +897,7 @@
     }
   },
   "validation": {
-    "tests": 288,
+    "tests": 327,
     "failures": 0,
     "errors": 0,
     "skipped": [
@@ -843,8 +955,8 @@
     "external_anatomy_present": false,
     "source_root_on_import_path": false
   },
-  "python_files": 74,
-  "copied_files_count": 87,
+  "python_files": 86,
+  "copied_files_count": 101,
   "spatial_update": {
     "date": "2026-10-20",
     "files": [
@@ -1119,5 +1231,51 @@
       "skipped": 9
     },
     "explicit_durations_preserved": true
+  },
+  "g1_spectral_update": {
+    "date": "2026-10-28",
+    "files": [
+      "Simulation_G1/geometry.py",
+      "Simulation_G1/spectral.py",
+      "Simulation_G1/spectral_metrics.py",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G1/spectral_rest.example.json",
+      "Simulation_G1/spectral_pilot_profiles.json",
+      "simulate_source_sensor.py",
+      "scripts/prepare_g1_lbo.py",
+      "scripts/prepare_g1_validation_eeg.py",
+      "scripts/evaluate_g1_spectral.py",
+      "scripts/plot_g1_spectral_validation.py",
+      "tests/test_g1_geometry.py",
+      "tests/test_g1_spectral.py",
+      "tests/test_g1_spectral_metrics.py",
+      "tests/test_g1_spectral_cli.py",
+      "tests/test_g1_validation_data.py",
+      "Simulation_G1/G1_usage_guide.md"
+    ],
+    "root_tests": {
+      "total": 334,
+      "passed": 332,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 327,
+      "passed": 318,
+      "skipped": 9
+    },
+    "real_validation": "generated_simulation_dataset/G1_spectral_validation",
+    "datasets": {
+      "eegmat_subjects": 16,
+      "eegmat_windows": 554,
+      "physionet_subjects": 8,
+      "physionet_records": 24
+    },
+    "sweep_counts": {
+      "rest": 324,
+      "states": 54,
+      "events": 32
+    },
+    "claim": "descriptive pilot; state-dependent agreement; not ESI accuracy validation"
   }
 }

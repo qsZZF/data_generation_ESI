@@ -160,10 +160,13 @@ def build_spatial_config(args: argparse.Namespace) -> SpatialDynamicsConfig:
 
 
 def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
+    spectral = (json.loads(Path(args.g1_spectral_config).read_text(encoding="utf-8"))
+                if args.g1_spectral_config else {})
     if args.source_type not in G1_WAVEFORM_PRESETS:
         raise ValueError(f"Unsupported G1 source_type {args.source_type!r}; choose from {sorted(G1_WAVEFORM_PRESETS)}")
     duration_s = float(args.duration_s)
     return G1SimulationConfig(
+        source_model=args.g1_source_model, spectral=spectral,
         sample_id=args.sample_id,
         template_id="fsaverage5",
         source_space_id="Cortex_FS_20k",
@@ -203,7 +206,8 @@ def run_g1(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     simulator = G1SourceSimulator.from_brainstorm_cortex(leadfield, cortex)
     config = build_g1_config(args)
     sensor, clean, noise, source, manifest = simulator.generate_sensor(config)
-    manifest.update({"high_level_engine": "g1", "source_type": args.source_type})
+    manifest.update({"high_level_engine": "g1", "source_type": args.source_type
+                     if config.source_model == "patch" else config.spectral.get("scenario", "rest")})
     return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, None, manifest, args.plot)
 
 
@@ -591,6 +595,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sensor-snr-mode", default="robust_global_rms", choices=["global_rms", "robust_global_rms", "active_rms"])
     parser.add_argument("--sensor-snr-clip-quantile", type=float, default=0.95)
     parser.add_argument("--baseline-duration-s", type=float, default=2.0)
+    parser.add_argument("--g1-source-model", choices=("patch", "lbo", "lbo_network"), default="patch")
+    parser.add_argument("--g1-spectral-config", type=Path, help="JSON settings for the G1 spectral source model")
     parser.add_argument("--average-reference", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--random-seed", type=int, default=20240629)
     parser.add_argument("--warmup-ms", type=float, default=1000.0,

@@ -7,6 +7,7 @@ anatomy/
 generated_simulation_dataset/
 generated*/
 nmm_spikes/
+projected_source_priors/
 *.pt
 *.pth
 *.log

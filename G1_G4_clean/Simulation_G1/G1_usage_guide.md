@@ -1,5 +1,103 @@
 # G1 Simulation Usage Guide
 
+## 皮层几何与网络约束生成：2026-10-28
+
+新增 `G1SimulationConfig.source_model="lbo"` / `"lbo_network"`，原默认 `"patch"` 不变。
+`spectral` 字典定义模式、时间频谱和事件参数；支持 `rest`、`erp`、`ersp`。
+几何模块直接使用当前 leadfield 对应的 Brainstorm 三角网格，cotangent FEM 刚度矩阵及 lumped
+面积质量矩阵求解广义特征问题，省略各连通分量的常数模态。`n_modes` 指双半球总模态数。
+当前 fsaverage5 256 模态文件对应每半球 128 模态；完整原始网格未另行切除 medial wall。
+基底及网络投影在 simulator 内缓存最近一组，文件或网格改变时重新验证，不缓存随机样本。
+
+时间过程是随机 Gaussian FFT 的 1/f 背景加 Gaussian alpha 峰，可选 beta 峰；
+网络图以面积加权方式投影到模态空间。此模型提供统计源信号，不等同于 NMM 生理参数模型。
+网络图必须是与当前网格逐顶点对齐的 `signed_maxabs` NPZ；符号不解释为兴奋/抑制。
+未接入尚未配准的完整 MACM 共激活矩阵。几何方法的参考实现见
+[BrainEigenmodes](https://github.com/NSBLab/BrainEigenmodes)，EEG/MEG 几何基参考见
+[GBF 研究](https://pubmed.ncbi.nlm.nih.gov/42045673/)；本实现不是其数值方法的逐项复现。
+
+### 调用
+
+```powershell
+python scripts/prepare_g1_lbo.py --modes 256
+python simulate_source_sensor.py --engine g1 --source-type erp --g1-source-model lbo --g1-spectral-config Simulation_G1/spectral_rest.example.json --duration-s 5 --srate-hz 256 --sensor-noise-type iid_white --sensor-snr-db 20 --sensor-snr-mode global_rms --sample-id lbo_rest_demo
+```
+
+第二条命令的 `--source-type` 是原接口字段，新模式的实际场景由 JSON 中 `scenario` 决定。
+也可直接用 Python，保留既有五返回值接口：
+
+```python
+config = G1SimulationConfig(
+    source_model="lbo", srate=256, time_window=(0, 5), random_seed=42,
+    sensor_noise_type="iid_white", sensor_snr_db=20., sensor_snr_mode="global_rms",
+    spectral={"basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz",
+              "n_modes": 256, "scenario": "rest", "temporal_exponent": 1.5,
+              "alpha_hz": 10.5, "alpha_width_hz": 2., "alpha_power_ratio": .5,
+              "network_fraction": 0.},
+)
+sensor, clean, noise, source, metadata = simulator.generate_sensor(config)
+```
+
+需要网络图时选择 `lbo_network`，提供 `network_path`、`network_fraction` 和可选 `network_indices`。
+建议冻结 `basis_sha256`、`network_sha256`，输出 metadata 同样记录实际哈希。
+`spectral_pilot_profiles.json` 保存五个探索性候选设置；选取其中一个字典传入 `spectral`，
+不要将整份 profile 表直接当作单个设置。纯 rest 的恢复目标是整个静息场，独立 noise baseline
+不含该目标；ERP/ERSP 的恢复目标分别是诱发项/调制增量，baseline 含未调制的静息背景。
+整个静息场作为目标时的无目标 baseline 是理想化仿真定义，不能当作真实静息 EEG 中自动可辨的无信号时段。
+默认 baseline 仍是 2 秒，默认协方差只从它估计，oracle 仅供诊断。
+五返回值中的 `source` 仍为总源信号；快速 `generate_coefficients` 接口另行提供 target/background。
+新模式使用 `erp_amplitude` / `ersp_depth` 控制目标相对背景，不接受 legacy `source_snr_db`。
+原自动训练配方生成器仍采样 patch；spectral 模式通过直接配置接口使用。
+
+### 参数及解释
+
+| 参数 | 含义 |
+|---|---|
+| `spatial_length_mm`, `spatial_exponent` | 模态能量随空间频率衰减的尺度和强度 |
+| `temporal_exponent` | 非周期过程的输入 PSD 指数；不保证传感器拟合斜率严格相等 |
+| `alpha_hz`, `alpha_width_hz`, `alpha_power_ratio` | alpha 中心、Gaussian PSD 标准差、相对非周期功率；ratio=0 可关闭 |
+| `beta_hz`, `beta_width_hz`, `beta_power_ratio` | 可选 beta；默认 ratio=0 |
+| `network_fraction`, `network_indices` | 网络过程在模态能量中的混合比例及地图列索引 |
+| `erp_latency_s`, `erp_width_s`, `erp_amplitude`, `erp_latency_jitter_s` | ERP 的相对潜伏期、宽度、任意模型尺度幅度、试次抖动 |
+| `event_onset_s`, `event_duration_s` | 事件位置与 ERSP 包络长度，均相对于 time_window 的时间坐标 |
+| `ersp_depth`, `ersp_beta_depth` | alpha/beta 振幅调制深度，负值为抑制、正值为增强，最小 -1 |
+
+ERP 使用带平滑起始边界的因果 Gaussian，事件前目标严格为零；ERSP 保留随机相位，
+使用 Hann 形幅度包络调制 alpha/beta，避免把诱发均值与诱导功率变化混为一谈。
+
+### 已运行的小规模真实对照
+
+运行 `scripts/prepare_g1_validation_eeg.py` 准备官方 PhysioNet S001–S008 的 R01/R02/R04，
+再使用 `scripts/evaluate_g1_spectral.py` 和 `scripts/plot_g1_spectral_validation.py`。
+评估还要求已准备的 EEGMAT/arithmetic 原生导出和匹配的解剖资产。
+脚本采用共有通道和 CAR、256 Hz、相同 1–40 Hz 滤波；比较频谱形状，不宣称绝对电流/电压幅度已校准。
+
+- EEGMAT rest：8 名 train、4 名 val、4 名 test；324 组配置，各 8 个随机种子。
+  train 前十候选由 val 选择，test 不用于选择，最终另用 8 个独立种子报告。
+- PhysioNet EO/EC：各 8 名被试，S001–S004 train、S005–S008 test；54 个状态候选。
+- PhysioNet cued MI：每人 15 次，共 120 次；真实事件前完整 2 秒 T0，事件后 3 秒任务。
+  32 个事件候选；ERP 比较每人 15 次平均的 GFP/RMS，ERSP 在 C3/Cz/C4 分析。
+- PSD 指标为描述性 Theil–Sen log-log 拟合（2–35 Hz 排除 7–14 Hz），不是 specparam。
+  Alpha 指标是候选峰；没有显著峰时峰位置不应作生理解释。ERSP 使用 bandpass/Hilbert
+  pooled power 的 baseline 比值，同时报告去 ERP 后的 induced 指标；TFR 图另用 STFT 作诊断。
+
+| 场景 | train/val 选择的候选 | 独立检验结论 |
+|---|---|---|
+| EEGMAT rest | 256 模态，指数1.5，alpha10.5Hz、SD2Hz、功率比0.5，无额外网络混合 | alpha峰10.84 vs真实11.02Hz，alpha占比0.484 vs0.468；指数1.50 vs1.23，仍有误差 |
+| PhysioNet EO | 指数1.5，额外alpha功率比0 | 频谱/时序距离较小；不可据此声称真实睁眼完全没有alpha |
+| PhysioNet EC | train偏好指数2、alpha功率比0.5 | 对test强度明显过估，固定强alpha配置不泛化 |
+| Cue ERP | 幅度0.5、潜伏期300ms、宽60ms、抖动40ms | 合成GFP峰约246ms，test中位约307ms；仅部分描述性匹配，不是P300验证 |
+| Motor ERSP | 运动网络混合0.5、alpha调制深度-0.1 | train较接近，test alpha/beta仍失配，需保留受试者/状态变化 |
+
+当前没有证据证明网络混合普遍优于纯 LBO，也未证明全脑 FC、源成像准确率或临床真实性。
+不建议只生成一个固定“最佳”设置；先使用验证过的范围构建状态与个体变体，并保留跨生成模型测试集。
+原路径结果位于 `generated_simulation_dataset/G1_spectral_validation/`，含 JSON/CSV、协议/哈希和 PNG/SVG。
+合集不包含真实 EEG、42MB 左右的基底缓存或生成结果；下载数据须遵守 PhysioNet ODC Attribution 许可。
+
+实测本机两线程：256 模态计算约16.7秒；输出全20484顶点的1秒样本约0.64–0.92秒
+（含2秒baseline，少量样本计时，非训练吞吐基准）。仅需 sensor 特征时，预计算 `L @ Phi`
+并使用模态接口可避免反复展开全顶点数组。
+
 ## 配方训练集：2026-10-23
 
 入口为 `python -m Simulation_G1.training_recipes`。只生成配置、空间支撑和索引，

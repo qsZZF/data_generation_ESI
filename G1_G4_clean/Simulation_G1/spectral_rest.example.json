@@ -1,0 +1,12 @@
+{
+  "basis_path": "Anatomy/G1_LBO/fsaverage5_lbo256.npz",
+  "n_modes": 256,
+  "scenario": "rest",
+  "spatial_length_mm": 20.0,
+  "spatial_exponent": 2.0,
+  "temporal_exponent": 1.5,
+  "alpha_hz": 10.5,
+  "alpha_width_hz": 2.0,
+  "alpha_power_ratio": 0.5,
+  "network_fraction": 0.0
+}
