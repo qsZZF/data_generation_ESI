@@ -590,7 +590,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--sensor-snr-db", type=float, default=10.0)
     parser.add_argument("--sensor-snr-mode", default="robust_global_rms", choices=["global_rms", "robust_global_rms", "active_rms"])
     parser.add_argument("--sensor-snr-clip-quantile", type=float, default=0.95)
-    parser.add_argument("--baseline-duration-s", type=float, default=1.0)
+    parser.add_argument("--baseline-duration-s", type=float, default=2.0)
     parser.add_argument("--average-reference", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--random-seed", type=int, default=20240629)
     parser.add_argument("--warmup-ms", type=float, default=1000.0,

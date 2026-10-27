@@ -15,18 +15,18 @@
   "copied_files": {
     "nmm_simulation.py": {
       "original": "nmm_simulation.py",
-      "original_sha256": "4eaff8be4b22176b3089d57821f5c2c36240cfedf9367b297e43a8eb998b3396",
-      "copied_sha256": "4eaff8be4b22176b3089d57821f5c2c36240cfedf9367b297e43a8eb998b3396",
+      "original_sha256": "2fd629d53619e0f9e7f2890b523de3b30e639011f0681e4c1ddf2540594e11b6",
+      "copied_sha256": "2fd629d53619e0f9e7f2890b523de3b30e639011f0681e4c1ddf2540594e11b6",
       "bytes": 25443,
       "changes": [],
       "byte_identical_to_original": true
     },
     "NMM_USAGE.md": {
       "original": "NMM_USAGE.md",
-      "original_sha256": "e84ab22da1dbd41739e6158076ddda8d97f939028979770cde37d52385f25e6d",
-      "copied_sha256": "7a236a0a6568d2b3f0171bbda0787df4fb4429529daf50a4681ff28f1de49853",
-      "bytes": 17440,
-      "byte_identical_to_original": false,
+      "original_sha256": "877a604c8f440a237963904799d383626d304687cd11340840297c788dbd8140",
+      "copied_sha256": "877a604c8f440a237963904799d383626d304687cd11340840297c788dbd8140",
+      "bytes": 18381,
+      "byte_identical_to_original": true,
       "changes": [
         "Replace omitted experiment-result links with snapshot validation guidance.",
         "Separate copy validation from historical experiment claims and omitted artifacts.",
@@ -43,8 +43,8 @@
     },
     "simulate_source_sensor.py": {
       "original": "simulate_source_sensor.py",
-      "original_sha256": "927a98fc7dcdbee2b763fff63fb60ba15240e582a2e123b22986fcae9a188957",
-      "copied_sha256": "927a98fc7dcdbee2b763fff63fb60ba15240e582a2e123b22986fcae9a188957",
+      "original_sha256": "0d219e5cacb8e3626ccfbffbb4c6143f5204936dcbd6f1f2905f313006ad7099",
+      "copied_sha256": "0d219e5cacb8e3626ccfbffbb4c6143f5204936dcbd6f1f2905f313006ad7099",
       "bytes": 31802,
       "byte_identical_to_original": true,
       "changes": []
@@ -59,8 +59,8 @@
     },
     "Simulation_G1/g1_simulation_core.py": {
       "original": "Simulation_G1/g1_simulation_core.py",
-      "original_sha256": "ab34aecdae3fd935d618629bd7a2618d70badde86a636e2341df580542ab01fe",
-      "copied_sha256": "ab34aecdae3fd935d618629bd7a2618d70badde86a636e2341df580542ab01fe",
+      "original_sha256": "e4c6b4f9e11ab0f07f127c30882ee08dcd65cd03a87a12c2ed7ec08b43f817d2",
+      "copied_sha256": "e4c6b4f9e11ab0f07f127c30882ee08dcd65cd03a87a12c2ed7ec08b43f817d2",
       "bytes": 89119,
       "changes": [],
       "byte_identical_to_original": true
@@ -96,8 +96,8 @@
     },
     "Simulation_G2/g2_simulation_core.py": {
       "original": "Simulation_G2/g2_simulation_core.py",
-      "original_sha256": "24c79addc4b4ae0a14a8606b6722fdb63a5f7fc5c76d6748efebda4de093fb4e",
-      "copied_sha256": "24c79addc4b4ae0a14a8606b6722fdb63a5f7fc5c76d6748efebda4de093fb4e",
+      "original_sha256": "bcc9b262efc8e48030fbf5633b9445c7adba0765521e6c98bc4b2861912a3407",
+      "copied_sha256": "bcc9b262efc8e48030fbf5633b9445c7adba0765521e6c98bc4b2861912a3407",
       "bytes": 45778,
       "byte_identical_to_original": true,
       "changes": []
@@ -134,8 +134,8 @@
     },
     "Simulation_G2/nmm_mixing.py": {
       "original": "Simulation_G2/nmm_mixing.py",
-      "original_sha256": "3eb7b1f4ab02c75a967f05b68364af3337876b2f1eb85c048d6ca193858c83ed",
-      "copied_sha256": "3eb7b1f4ab02c75a967f05b68364af3337876b2f1eb85c048d6ca193858c83ed",
+      "original_sha256": "50a2db4cff90e786b4c7ad7acb0764cac2d283f7b663b8542d3a1b06ce3e32e4",
+      "copied_sha256": "50a2db4cff90e786b4c7ad7acb0764cac2d283f7b663b8542d3a1b06ce3e32e4",
       "bytes": 12254,
       "byte_identical_to_original": true,
       "changes": []
@@ -274,9 +274,9 @@
     },
     "Simulation_G4/bank.py": {
       "original": "Simulation_G4/bank.py",
-      "original_sha256": "7609f35c25ed1009bf86fe4fdf61f7e2083d4a99ac838b42e5e69af533ae38c1",
+      "original_sha256": "a63a1c80d03ca93c916ef1130fee567ebdc2ea2675dd64a59311935d60fc1fb9",
       "changes": [],
-      "copied_sha256": "7609f35c25ed1009bf86fe4fdf61f7e2083d4a99ac838b42e5e69af533ae38c1",
+      "copied_sha256": "a63a1c80d03ca93c916ef1130fee567ebdc2ea2675dd64a59311935d60fc1fb9",
       "bytes": 11545,
       "byte_identical_to_original": true
     },
@@ -332,20 +332,20 @@
     },
     "Simulation_G4/pipeline.py": {
       "original": "Simulation_G4/pipeline.py",
-      "original_sha256": "07b7984e018a63df67d7e14e138165cf0146a50af1550c8ba334c51b6868bb75",
+      "original_sha256": "2f1d9c0f97f730340485166fe4f2b37df6b1c76b10bcc41f2e76765151326425",
       "changes": [],
-      "copied_sha256": "07b7984e018a63df67d7e14e138165cf0146a50af1550c8ba334c51b6868bb75",
+      "copied_sha256": "2f1d9c0f97f730340485166fe4f2b37df6b1c76b10bcc41f2e76765151326425",
       "bytes": 32372,
       "byte_identical_to_original": true
     },
     "Simulation_G4/README.md": {
       "original": "Simulation_G4/README.md",
-      "original_sha256": "4369377bc257d595c378ee3b00b3ee4bfcf30da0810a2d0df21c73d824adf88f",
+      "original_sha256": "3412194f65c984bd85e53832e98f12f91aa648a30bb561df89f6def85eae4793",
       "changes": [
         "Do not imply that original results/checkpoints are included.",
         "Link the supplied asset instructions."
       ],
-      "copied_sha256": "fec254a42f84361fb4ae93d7273aa3ef29b4df09b00fa0563cb53f56ced33fe9",
+      "copied_sha256": "35071922c851a2ab3afad1881fc47283de2f422a7d760685681725b776278dc5",
       "bytes": 25723,
       "byte_identical_to_original": false
     },
@@ -500,10 +500,10 @@
     },
     "tests/test_nmm_mixing.py": {
       "original": "tests/test_nmm_mixing.py",
-      "original_sha256": "cd70d2bdf9334bb21bff0e464db4c042813c8c8631ff3ceb502fd81725cee817",
+      "original_sha256": "3d3cb2aef0d1ff9d561a1d31232f7cf7b4928eb58e586bd479f6a7feb9d8fd51",
       "changes": [],
-      "copied_sha256": "cd70d2bdf9334bb21bff0e464db4c042813c8c8631ff3ceb502fd81725cee817",
-      "bytes": 7644,
+      "copied_sha256": "3d3cb2aef0d1ff9d561a1d31232f7cf7b4928eb58e586bd479f6a7feb9d8fd51",
+      "bytes": 7778,
       "byte_identical_to_original": true
     },
     "tests/test_nmm_sources.py": {
@@ -516,9 +516,9 @@
     },
     "tests/test_simulation_pipeline.py": {
       "original": "tests/test_simulation_pipeline.py",
-      "original_sha256": "1d682c293d8754d2648b69c99899172d7ef6c8f7a05685f4433ae6676816fd99",
-      "copied_sha256": "1d682c293d8754d2648b69c99899172d7ef6c8f7a05685f4433ae6676816fd99",
-      "bytes": 12128,
+      "original_sha256": "48615f3616e0cae0304e31f19af0efa3556137fc524a2fd227df7e1bf16245de",
+      "copied_sha256": "48615f3616e0cae0304e31f19af0efa3556137fc524a2fd227df7e1bf16245de",
+      "bytes": 12124,
       "byte_identical_to_original": true,
       "changes": []
     },
@@ -548,10 +548,10 @@
     },
     "tests/test_unified_nmm.py": {
       "original": "tests/test_unified_nmm.py",
-      "original_sha256": "2b195e72913044b40062413e5f01a14eda1bbd89bfa4c74494e52fafa2cca188",
+      "original_sha256": "f90ffd618365b5ab13eb8f55d6906a87e8de1c6613c933a6ffbea7519c4a290a",
       "changes": [],
-      "copied_sha256": "2b195e72913044b40062413e5f01a14eda1bbd89bfa4c74494e52fafa2cca188",
-      "bytes": 8995,
+      "copied_sha256": "f90ffd618365b5ab13eb8f55d6906a87e8de1c6613c933a6ffbea7519c4a290a",
+      "bytes": 9019,
       "byte_identical_to_original": true
     },
     "Simulation_G4/reference/aal_regions.csv": {
@@ -662,16 +662,16 @@
     },
     "Simulation_G2/period_index.py": {
       "original": "Simulation_G2/period_index.py",
-      "original_sha256": "0509bf3a55efa2e41b9a0e75623a3ff1ec2bcfb82f72d5a7773a9b2fc61d84d0",
-      "copied_sha256": "0509bf3a55efa2e41b9a0e75623a3ff1ec2bcfb82f72d5a7773a9b2fc61d84d0",
+      "original_sha256": "463566dc890a956ae337b51bc3391a0d6446628f1b70ee24794ea8972671a019",
+      "copied_sha256": "463566dc890a956ae337b51bc3391a0d6446628f1b70ee24794ea8972671a019",
       "bytes": 22420,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G2/training_dataset.py": {
       "original": "Simulation_G2/training_dataset.py",
-      "original_sha256": "ea279343850db5d2d2584a175c9ae90e2b69d137edbe992d9fa09f7284ec8613",
-      "copied_sha256": "ea279343850db5d2d2584a175c9ae90e2b69d137edbe992d9fa09f7284ec8613",
+      "original_sha256": "b106b91f542e720ec97690c910f1ea0111202d1d73c6a0a6d8fa4dd201c80554",
+      "copied_sha256": "b106b91f542e720ec97690c910f1ea0111202d1d73c6a0a6d8fa4dd201c80554",
       "bytes": 16206,
       "changes": [],
       "byte_identical_to_original": true
@@ -686,17 +686,17 @@
     },
     "tests/test_period_index.py": {
       "original": "tests/test_period_index.py",
-      "original_sha256": "6f3660dbc1468be689645d2939e46b0c39ae5d39f0b49de127454226f07894f4",
-      "copied_sha256": "6f3660dbc1468be689645d2939e46b0c39ae5d39f0b49de127454226f07894f4",
-      "bytes": 12116,
+      "original_sha256": "69e4e37f090ef499ca6f3fa17495b4756020ce167978e2adf181dc48637f5117",
+      "copied_sha256": "69e4e37f090ef499ca6f3fa17495b4756020ce167978e2adf181dc48637f5117",
+      "bytes": 12794,
       "changes": [],
       "byte_identical_to_original": true
     },
     "tests/test_nmm_training_dataset.py": {
       "original": "tests/test_nmm_training_dataset.py",
-      "original_sha256": "4b678c5a75bcbe2dfeebea2ceade2949914ab188443d6402b8bff969faf27806",
-      "copied_sha256": "4b678c5a75bcbe2dfeebea2ceade2949914ab188443d6402b8bff969faf27806",
-      "bytes": 7938,
+      "original_sha256": "3743d455b45c78c7317ce8126ba5d6a3a41c3b34ea19123369d057281ac15e74",
+      "copied_sha256": "3743d455b45c78c7317ce8126ba5d6a3a41c3b34ea19123369d057281ac15e74",
+      "bytes": 7963,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -719,37 +719,37 @@
     "tests/test_g1_noise_covariance.py": {
       "original": "tests/test_g1_noise_covariance.py",
       "changes": [],
-      "original_sha256": "6e397d04bf6e950d06203a6e5c62a6a2170781cee6e8b3c32e4a08a08fb5c739",
-      "copied_sha256": "6e397d04bf6e950d06203a6e5c62a6a2170781cee6e8b3c32e4a08a08fb5c739",
+      "original_sha256": "734e21549511846701d2942106fa4741bdb3feb2b4d57bc80a946ca033ea4c11",
+      "copied_sha256": "734e21549511846701d2942106fa4741bdb3feb2b4d57bc80a946ca033ea4c11",
       "bytes": 10201,
       "byte_identical_to_original": true
     },
     "tests/test_nmm_noise_covariance.py": {
       "original": "tests/test_nmm_noise_covariance.py",
       "changes": [],
-      "original_sha256": "eb6157bfc4000dfa2ff47e54c48ac6b72452b382e58a86622a1d06b270305540",
-      "copied_sha256": "eb6157bfc4000dfa2ff47e54c48ac6b72452b382e58a86622a1d06b270305540",
-      "bytes": 11971,
+      "original_sha256": "d5d00553430cd449351dc2316c70fa25afd7691e75a0a9760f18814c76c4da2f",
+      "copied_sha256": "d5d00553430cd449351dc2316c70fa25afd7691e75a0a9760f18814c76c4da2f",
+      "bytes": 12476,
       "byte_identical_to_original": true
     },
     "tests/test_g4_noise_covariance.py": {
       "original": "tests/test_g4_noise_covariance.py",
       "changes": [],
-      "original_sha256": "bc7d7bb3ec43cea95d9f7d004640505b19cd4fa9eab26fb5b7f7dbc6a87b53a0",
-      "copied_sha256": "bc7d7bb3ec43cea95d9f7d004640505b19cd4fa9eab26fb5b7f7dbc6a87b53a0",
+      "original_sha256": "5dad41fae8786761376e04fe109875dfc04e0535cfc959a5efd813d61a93adf8",
+      "copied_sha256": "5dad41fae8786761376e04fe109875dfc04e0535cfc959a5efd813d61a93adf8",
       "bytes": 9063,
       "byte_identical_to_original": true
     },
     "tests/test_covariance_exports.py": {
       "original": "tests/test_covariance_exports.py",
       "changes": [],
-      "original_sha256": "7fac6bfc6e24ffd5378a70976d5587e89fffc5b8d49c8c4f73854ef2a9ea1385",
-      "copied_sha256": "7fac6bfc6e24ffd5378a70976d5587e89fffc5b8d49c8c4f73854ef2a9ea1385",
+      "original_sha256": "8abc8b3373abc33ec1b60949970197a433584d2515609db51c41a7e3536bbbb6",
+      "copied_sha256": "8abc8b3373abc33ec1b60949970197a433584d2515609db51c41a7e3536bbbb6",
       "bytes": 3907,
       "byte_identical_to_original": true
     }
   },
-  "completed_at": "2026-10-27T15:25:32.345877+00:00",
+  "completed_at": "2026-10-27T16:38:07.369006+00:00",
   "added_files": {
     ".gitignore": {
       "sha256": "c712bb3c73cfa42d7b32a73170404d135988f297424ecdf6a2799faed7dfd074",
@@ -776,8 +776,8 @@
       "bytes": 420
     },
     "VALIDATION.md": {
-      "sha256": "9fa8d68e735608d5aec0f3c30bfedfaad40da0d8e371eec3ff8932a01c41a942",
-      "bytes": 10775
+      "sha256": "bc749d80d345fcaba12961b2e3e6131576193849dba9e41503404920522976af",
+      "bytes": 11556
     },
     ".gitattributes": {
       "sha256": "8a341e319197a1cb2db9b02b47a1c833918873ca69de24f5010697efe2aa0427",
@@ -785,7 +785,7 @@
     }
   },
   "validation": {
-    "tests": 286,
+    "tests": 288,
     "failures": 0,
     "errors": 0,
     "skipped": [
@@ -1082,5 +1082,42 @@
     },
     "real_assets_validation": ".omx/diagnostics/baseline_real_validation.json",
     "remote": "https://github.com/qsZZF/data_generation_ESI.git"
+  },
+  "baseline_2s_update": {
+    "date": "2026-10-28",
+    "files": [
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G2/g2_simulation_core.py",
+      "Simulation_G2/nmm_mixing.py",
+      "Simulation_G2/period_index.py",
+      "Simulation_G2/training_dataset.py",
+      "Simulation_G4/bank.py",
+      "Simulation_G4/pipeline.py",
+      "nmm_simulation.py",
+      "simulate_source_sensor.py",
+      "NMM_USAGE.md",
+      "tests/test_g1_noise_covariance.py",
+      "tests/test_covariance_exports.py",
+      "tests/test_nmm_mixing.py",
+      "tests/test_unified_nmm.py",
+      "tests/test_nmm_training_dataset.py",
+      "tests/test_g4_noise_covariance.py",
+      "tests/test_simulation_pipeline.py",
+      "tests/test_period_index.py",
+      "tests/test_nmm_noise_covariance.py",
+      "Simulation_G4/README.md"
+    ],
+    "default_baseline_duration_s": 2.0,
+    "root_tests": {
+      "total": 295,
+      "passed": 293,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 288,
+      "passed": 279,
+      "skipped": 9
+    },
+    "explicit_durations_preserved": true
   }
 }

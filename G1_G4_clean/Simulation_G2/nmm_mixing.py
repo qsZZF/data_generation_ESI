@@ -123,7 +123,7 @@ def mix_sources(foreground_region, background_region, projection, vertex_areas,
 
 def make_sensors(backend, source_arrays, *, srate, sensor_noise_type='iid_white',
                  sensor_snr_db=None, sensor_seed=0, average_reference=True, real_sensor_noise=None,
-                 baseline_duration_s=1., baseline_source=None, baseline_metadata=None):
+                 baseline_duration_s=2., baseline_source=None, baseline_metadata=None):
     """Project both sources and calibrate measurement noise after referencing."""
     if not np.isfinite(srate) or srate <= 0:
         raise ValueError("srate must be positive and finite")

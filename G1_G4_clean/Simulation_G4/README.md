@@ -218,7 +218,7 @@ does not show that the inverse learned useful regional parameters.
 
 ## 从独立 baseline 估计噪声协方差（2026-10-27）
 
-投影后的每个训练 draw 生成默认 1 秒的 baseline，并在 `training_noise_covariance.npz`
+投影后的每个训练 draw 生成默认 2 秒的 baseline，并在 `training_noise_covariance.npz`
 中保存 `baseline_sensor`、由它估计的 float64 `noise_covariance`，以及仅用于诊断的
 `oracle_noise_covariance` / `sensor_noise_covariance`。各矩阵形状为 `[draw, channel, channel]`，
 记录 draw 索引、baseline 随机种子及通道顺序。baseline 使用独立噪声随机流，沿用活动段
@@ -227,7 +227,7 @@ baseline 和活动段使用相同的 1–40 Hz 滤波及平均参考，处于逆
 若随后将信号除以尺度 s，协方差须除以 s²。
 源轨迹 bank 本身尚无指定 sensor montage，因此在投影阶段生成这些矩阵。
 
-当前重建导出的 `clean_sensor_V` 没有额外加入噪声，各 draw 保存 1 秒零 baseline 和零协方差，
+当前重建导出的 `clean_sensor_V` 没有额外加入噪声，各 draw 保存 2 秒零 baseline 和零协方差，
 明确标记无噪声、baseline 不含估计信息；它不是实测 EEG 的噪声估计。白化方法、秩处理和统一接口详见
 [NMM 使用指南](../NMM_USAGE.md#per-sample-baseline-covariance-for-esi-whitening)。
 

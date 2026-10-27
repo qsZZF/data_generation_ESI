@@ -19,7 +19,7 @@ class CovarianceExportTests(unittest.TestCase):
             warnings.simplefilter('error', RuntimeWarning)
             with patch.object(self.backend, 'generate_source', side_effect=lambda _: (self.source, self.source, {})):
                 *_, metadata = self.backend.generate_sensor(replace(self.config, sensor_snr_db=None))
-        np.testing.assert_array_equal(metadata['baseline_sensor'], np.zeros((4, 200)))
+        np.testing.assert_array_equal(metadata['baseline_sensor'], np.zeros((4, 400)))
         self.assertEqual(metadata['noise_covariance_info']['rank'], 0)
         json.dumps(metadata, allow_nan=False)
 

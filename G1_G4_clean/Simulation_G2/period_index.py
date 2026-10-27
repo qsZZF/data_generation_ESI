@@ -129,7 +129,7 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
                        source_snr_db=None, background_bank_dirs=(), sensor_snrs=(10.,),
                        sensor_noise_types=("iid_white",), spatial_profiles=("uniform",),
                        decay_mm=12., spatial_start_s=0., spatial_duration_s=.3,
-                       average_reference=True, normalize_source=True, baseline_duration_s=1.):
+                       average_reference=True, normalize_source=True, baseline_duration_s=2.):
     """Write a JSONL table with byte offsets and parent-disjoint split indices.
 
     Input banks must already share one sampling rate, atlas, projection and unit.
@@ -339,7 +339,7 @@ def main(argv=None):
     parser.add_argument("--banks", nargs="+", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--period-s", type=float, default=1.)
-    parser.add_argument("--baseline-duration-s", type=float, default=1.)
+    parser.add_argument("--baseline-duration-s", type=float, default=2.)
     parser.add_argument("--stride-s", type=float)
     parser.add_argument("--tail-policy", choices=("drop", "error"), default="drop")
     parser.add_argument("--variants-per-period", type=int, default=1)

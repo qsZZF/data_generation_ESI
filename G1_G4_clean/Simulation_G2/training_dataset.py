@@ -159,7 +159,7 @@ class NMMRecipeDataset:
                 raise ValueError('Partitioned and independent backgrounds cannot be combined implicitly')
             background,background_entry=self._window(row['background'])
         rate=self.manifest['rate_hz']
-        baseline_duration=config.get('baseline_duration_s',1.)
+        baseline_duration=config.get('baseline_duration_s',2.)
         baseline_samples=baseline_sample_count(baseline_duration,rate)
         baseline_region,baseline_reference=None,None
         if background is not None:

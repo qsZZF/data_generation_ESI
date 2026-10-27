@@ -35,7 +35,17 @@ class PeriodIndexTests(unittest.TestCase):
 
     def build(self, output="index", **kwargs):
         return build_period_index([self.bank], self.root/output,
-                                  **({"split_fractions": (1., 0., 0.)} | kwargs))
+                                  **({"split_fractions": (1., 0., 0.), "baseline_duration_s": 1.} | kwargs))
+
+    def test_default_two_second_baseline_windows_are_disjoint(self):
+        self.save('long', count=80)
+        build_period_index([self.bank], self.root/'default_baseline',
+            split_fractions=(1.,0.,0.), source_mode='partition', source_snr_db=10)
+        for row in self.rows('default_baseline'):
+            self.assertEqual(row['config']['baseline_duration_s'], 2.)
+            base, event = row['baseline_background'], row['foreground']
+            self.assertEqual(base['stop_sample'] - base['start_sample'], 40)
+            self.assertTrue(base['stop_sample'] <= event['start_sample'] or base['start_sample'] >= event['stop_sample'])
 
     def rows(self, output="index"):
         return [json.loads(line) for line in (self.root/output/"periods.jsonl").read_text().splitlines()]

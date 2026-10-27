@@ -222,10 +222,10 @@ def _reconstruct_group(job):
                           max(float(np.mean(baseline_projected ** 2)), np.finfo(float).tiny)))
     baseline_metrics = _forward_metrics(eeg[evaluation], baseline_projected * baseline_gain, sampling_rate_hz)
     fitted_metrics = _forward_metrics(eeg[evaluation], reconstructed, sampling_rate_hz)
-    baseline_samples = baseline_sample_count(1., sampling_rate_hz)
+    baseline_samples = baseline_sample_count(2., sampling_rate_hz)
     covariance_arrays, covariance_metadata = baseline_covariance_payload(
         np.zeros((leadfield.shape[0], baseline_samples)), np.zeros_like(reconstructed[0]),
-        average_reference=True, baseline_metadata=dict(duration_s=1., sampling_rate_hz=sampling_rate_hz,
+        average_reference=True, baseline_metadata=dict(duration_s=2., sampling_rate_hz=sampling_rate_hz,
             n_samples=baseline_samples, target_present=False, status="uninformative_no_added_noise",
             generation="zeros_no_added_noise"))
     covariance_arrays = {key: np.repeat(value[None], len(reconstructed), axis=0)
@@ -339,7 +339,7 @@ def validate_bank_identity(config, atlas, connectivity):
 def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epochs=150,
                 batch_size=8, profile="paper", device="auto", seed=42, sensor_snr_db=None,
                 max_reconstruction_groups=None, train_only=False, reconstruction_workers=1,
-                baseline_duration_s=1.):
+                baseline_duration_s=2.):
     output = Path(output_dir) / name
     output.mkdir(parents=True, exist_ok=True)
     bank_config = json.loads((Path(bank_dir) / "config.json").read_text())
@@ -483,7 +483,7 @@ def main():
     parser.add_argument("--profile", choices=["paper", "compact"], default="paper")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--sensor-snr-db", type=float, default=None)
-    parser.add_argument("--baseline-duration-s", type=float, default=1.)
+    parser.add_argument("--baseline-duration-s", type=float, default=2.)
     parser.add_argument("--max-reconstruction-groups", type=int, default=None)
     parser.add_argument("--reconstruction-workers", type=int, default=1)
     mode = parser.add_mutually_exclusive_group()

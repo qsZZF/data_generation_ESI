@@ -39,7 +39,7 @@ class NMMTrainingDatasetTests(unittest.TestCase):
             storage={'codec':'lowrank','rank':2},simulation_group_id=group)
 
     def build(self,folder='index',**kwargs):
-        return build_period_index([self.bank],self.root/folder,**({'split_fractions':(1.,0.,0.)}|kwargs))
+        return build_period_index([self.bank],self.root/folder,**({'split_fractions':(1.,0.,0.),'baseline_duration_s':1.}|kwargs))
 
     def test_periods_match_canonical_slices_and_repeat_after_random_access(self):
         manifest=self.build(sensor_snrs=(None,),normalize_source=False)

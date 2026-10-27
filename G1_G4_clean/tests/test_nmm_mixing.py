@@ -20,6 +20,8 @@ class NMMMixingTests(unittest.TestCase):
         self.backend.leadfield = np.array([[1., 2., 0.], [0., 1., 3.], [2., -1., 1.]])
 
     def sensors(self, source, **kwargs):
+        # These fixed-size fixtures explicitly exercise a one-second override.
+        kwargs.setdefault('baseline_duration_s', 1.)
         if np.any(source['source_background']):
             kwargs.setdefault('baseline_source', np.random.default_rng(611).normal(size=(3, 500)))
         return make_sensors(self.backend, source, **kwargs)

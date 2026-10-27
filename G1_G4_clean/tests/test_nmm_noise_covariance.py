@@ -15,6 +15,15 @@ import nmm_simulation
 
 
 class NMMNoiseCovarianceTests(unittest.TestCase):
+    def test_default_two_second_unified_baseline(self):
+        fixture = self.fixture(test_unified_nmm.UnifiedNMMTests)
+        config = vars(fixture.config).copy()
+        config.pop('baseline_duration_s')
+        sample = fixture.sim.generate_sample(nmm_simulation.NMMSimulationConfig(**config))
+        self.assertEqual(sample['baseline_sensor'].shape, (3, 200))
+        self.assertEqual(sample['sensor'].shape, (3, 100))
+        self.assert_covariance(sample, tolerance=2e-7)
+
     def fixture(self, case):
         fixture = case()
         self.addCleanup(fixture.doCleanups)
@@ -131,7 +140,7 @@ class NMMNoiseCovarianceTests(unittest.TestCase):
         rng=np.random.default_rng(901)
         baseline=4*rng.normal(size=(3,500));event=rng.normal(size=(3,200))
         with patch.object(fixture.backend,'_make_sensor_noise',return_value=np.concatenate([baseline,event],axis=1)):
-            arrays,meta=make_sensors(fixture.backend,sources,srate=500,sensor_snr_db=10,average_reference=False)
+            arrays,meta=make_sensors(fixture.backend,sources,srate=500,sensor_snr_db=10,average_reference=False,baseline_duration_s=1.)
         gain=meta['baseline']['shared_noise_gain']
         np.testing.assert_allclose(arrays['baseline_sensor'],(baseline-baseline.mean(axis=1,keepdims=True))*gain,rtol=1e-6)
         np.testing.assert_allclose(arrays['sensor_noise'],(event-event.mean(axis=1,keepdims=True))*gain,rtol=1e-12)

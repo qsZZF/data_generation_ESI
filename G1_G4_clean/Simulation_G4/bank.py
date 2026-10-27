@@ -109,7 +109,7 @@ def generate_bank(connectivity, directory, *, n_draws=2048, duration_s=10,
 
 
 def project_bank(directory, leadfield, n_times, *, sensor_snr_db=None, seed=0,
-                 return_noise=False, return_baseline=False, baseline_duration_s=1.):
+                 return_noise=False, return_baseline=False, baseline_duration_s=2.):
     """Build a montage view, optionally returning the actual added sensor noise.
 
     The optional third return shares the EEG's draw/channel/time axes. Keeping

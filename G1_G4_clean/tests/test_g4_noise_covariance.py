@@ -64,10 +64,10 @@ class G4NoiseCovarianceTests(unittest.TestCase):
         for expected, actual in zip(old, new[:3]):
             np.testing.assert_array_equal(expected, actual)
         baseline = new[3]["baseline_sensor"]
-        self.assertEqual(baseline.shape, (10, 8, 256))
+        self.assertEqual(baseline.shape, (10, 8, 512))
         self.assertFalse(np.array_equal(baseline, new[2]))
         for index, info in enumerate(new[3]["metadata"]):
-            values = np.random.default_rng(np.random.SeedSequence(info["seed_sequence"])).standard_normal((8, 256))
+            values = np.random.default_rng(np.random.SeedSequence(info["seed_sequence"])).standard_normal((8, 512))
             values -= values.mean(axis=0, keepdims=True)
             values -= values.mean(axis=1, keepdims=True)
             np.testing.assert_array_equal(baseline[index], values * info["shared_noise_gain"])
@@ -123,7 +123,7 @@ class G4NoiseCovarianceTests(unittest.TestCase):
                 with np.load(output / report["groups"][0]["file"]) as forward:
                     self.assertEqual(forward["noise_covariance"].shape, (3, 8, 8))
                     np.testing.assert_array_equal(forward["noise_covariance"], 0)
-                    self.assertEqual(forward["baseline_sensor"].shape, (3, 8, 256))
+                    self.assertEqual(forward["baseline_sensor"].shape, (3, 8, 512))
                     np.testing.assert_array_equal(forward["baseline_sensor"], 0)
                     metadata = json.loads(str(forward["metadata_json"]))
                     self.assertEqual(metadata["noise_status"], "no_added_noise")

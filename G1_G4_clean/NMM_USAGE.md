@@ -12,7 +12,7 @@ channels x baseline samples) and three float64 channel-by-channel matrices:
 - `sensor_noise_covariance`: covariance of the known event measurement noise,
   also diagnostic only.
 
-The baseline contains no localization target. Its default duration is one second
+The baseline contains no localization target. Its default duration is two seconds
 (`baseline_duration_s`, or `--baseline-duration-s` where exposed). Baseline and
 activity share the noise model, channel mixing/reference, and calibrated amplitude
 scales. SNR is calibrated on the activity segment; the baseline is never separately
@@ -83,8 +83,10 @@ reusing the projection/SNR components below. See the
 Dynamic selected-region projection now removes regional PSP baselines before
 applying a time-varying envelope; a static offset therefore does not become a new signal.
 
-
-2026-10-20: Selected spatial envelopes use spatial and spatial_decay_mm; static defaults are preserved. See [spatial scenarios](SIMULATION_GUIDELINE.md#g1g2-spatial-scenarios-2026-10-20).
+Selected-region spatial envelopes are available through `spatial` and
+`spatial_decay_mm`; defaults preserve the static projection. See the shared
+[G1/G2 spatial guide](SIMULATION_GUIDELINE.md#g1g2-spatial-scenarios-2026-10-20)
+for nonoverlap, diffusion/contraction, JSON configuration and SNR semantics.
 
 `nmm_simulation.py` exposes one NMM interface with G1's five-return convention.
 It reuses G3 for dynamics and bank generation, and G2 for anatomical projection
@@ -303,14 +305,26 @@ components. A hash of each foreground/background pair alone is insufficient.
 Keep raw-trajectory morphology QC separate from augmented views: the8mV peak
 detector belongs on the raw PSP bank, not on normalized or SNR-scaled arrays.
 
-## Verification in this code-only collection
+## Verification and implementation
 
-This collection includes the original component, provider, numerical and interface tests.
-Original experiment data, result figures and training outputs are not bundled.
-See [VALIDATION.md](VALIDATION.md) for isolated tests of this copied code and
-[EXTERNAL_ASSETS.md](EXTERNAL_ASSETS.md) before running real anatomical simulations.
+Real AAL anatomy was exercised for a2x3 grid of source SNR0/10dB and sensor
+SNR0/10/20dB. Both achieved SNRs were within1e-4dB of their targets after float32
+export, while reusing exactly two underlying NMM records. Pink, mixed and supplied
+synthetic matrix noise were also checked. Legacy998-to994 replay plus a newly
+generated resting background passed the same source/sensor SNR checks. Real
+online and cached AAL output arrays and parent groups were identical.
 
-The implementation reuses G3 trajectories and G2 projection/noise routines; the main
-public API is nmm_simulation.py. Banks remain single-writer. AAL delays retain
-their centroid-distance approximation. Model families beyond the unified JR presets
-still require explicit observable/unit alignment.
+The supplied-noise path was tested using synthetic matrices, not a measured EEG
+recording. Additional morphology classes and physiological validation remain out
+of scope. [Numerical verification](generated_simulation_dataset/NMM_unified_validation/verification.json)
+and [component preview](generated_simulation_dataset/NMM_unified_validation/component_preview.png).
+
+The final full regression run passed **163 tests**, with installed-TVB and local
+anatomy checks enabled. Compilation and the real JSON CLI example passed as well.
+
+New implementation files are `nmm_simulation.py`, `Simulation_G3/nmm_sources.py`
+and `Simulation_G2/nmm_mixing.py`, with corresponding tests. Existing G2 changes
+are limited to the additional `iid_white` noise branch. No dependencies or G4
+assets were added or changed. Banks remain single-writer; batch generation is
+sequential. Cached dynamics still use the existing verified atlas conventions,
+including the AAL centroid-distance delay approximation.

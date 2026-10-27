@@ -223,7 +223,7 @@ class G2SimulationConfig:
     sensor_snr_db: float | None = 5.0
     sensor_snr_mode: str = "robust_global_rms"
     sensor_snr_clip_quantile: float = 0.95
-    baseline_duration_s: float = 1.0
+    baseline_duration_s: float = 2.0
     average_reference: bool = True
     random_seed: int | None = None
     nmm_sample_id: str | None = None

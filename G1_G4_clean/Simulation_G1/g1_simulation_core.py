@@ -74,7 +74,7 @@ class G1SimulationConfig:
     patch_vertices: list[list[int]] | None = None
     patch_gains: list[float] | None = None
     sensor_noise_peak_ratio: float | None = None
-    baseline_duration_s: float = 1.0
+    baseline_duration_s: float = 2.0
 
     def validate_recipe(self) -> None:
         """Validate opt-in replay fields without changing legacy RNG behavior."""

@@ -45,7 +45,7 @@ class NMMSimulationConfig:
     spatial: SpatialDynamicsConfig = field(default_factory=lambda: SpatialDynamicsConfig(mode='static'))
     spatial_decay_mm: float | None = None
     duration_s: float = 2.0
-    baseline_duration_s: float = 1.0
+    baseline_duration_s: float = 2.0
     trajectory_duration_s: float | None = None
     start_s: float = 0.0
     warmup_s: float = 1.0

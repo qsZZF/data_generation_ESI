@@ -30,7 +30,7 @@ class UnifiedNMMTests(unittest.TestCase):
                                          cortex, projection, self.root / 'bank')
         self.sim = NMMSourceSimulator(self.backend, channel_names=['a', 'b', 'c'])
         self.config = NMMSimulationConfig(atlas='aal78', active_regions=[1], source_mode='selected',
-            duration_s=1, srate=100, source_snr_db=3, sensor_snr_db=10, random_seed=42)
+            duration_s=1, srate=100, source_snr_db=3, sensor_snr_db=10, random_seed=42, baseline_duration_s=1.)
         self.profile_patch = patch('nmm_simulation.get_atlas_profile', return_value=self.profile)
         self.profile_patch.start()
         self.addCleanup(self.profile_patch.stop)

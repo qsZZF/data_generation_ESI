@@ -33,7 +33,7 @@ class G1NoiseCovarianceTests(unittest.TestCase):
                     baseline = np.asarray(metadata['baseline_sensor'])
                     np.testing.assert_allclose(metadata['noise_covariance'], np.cov(baseline), atol=1e-14)
                     self.assertFalse(np.allclose(metadata['noise_covariance'], expected))
-                    self.assertEqual(baseline.shape, (4, 100))
+                    self.assertEqual(baseline.shape, (4, 200))
                     self.assertIsInstance(metadata['noise_covariance'], list)
                     json.dumps(metadata)
                     if average_reference:

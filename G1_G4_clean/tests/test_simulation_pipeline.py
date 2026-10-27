@@ -168,8 +168,8 @@ class PipelineTests(unittest.TestCase):
         source = np.array([[1., -1., 2., -2.], [2., -2., 1., -1.]])
         backend = object.__new__(G2SourceSimulator)
         backend.leadfield = np.eye(2)
-        # Include the new one-second baseline plus the four event samples.
-        common_noise = np.tile([1., -1., 1., -1.], (2, 126))
+        # Include the two-second baseline plus the four event samples.
+        common_noise = np.tile([1., -1., 1., -1.], (2, 251))
         with self.assertRaisesRegex(ValueError, "noise.*power|power.*noise"):
             backend._finalize_sensor_from_source(source, source, {}, G2SimulationConfig(), common_noise)
 
