@@ -1,0 +1,24 @@
+{
+  "atlas_id": "legacy998_export994",
+  "projection_path": "../Anatomy/FS_994nmm_to_20k.mat",
+  "defaults": {
+    "signal_type": "spike_jr",
+    "active_regions": [258, 367, 469, 579, 660, 768],
+    "random_seed": 20261015,
+    "simulation_length_ms": 10000,
+    "warmup_ms": 1000,
+    "dt_ms": 0.5,
+    "output_srate_hz": 500,
+    "normalize": false,
+    "jr_coupling_mode": "sparse",
+    "jr_background_A": 3.25,
+    "jr_active_A": 3.6,
+    "jr_mu": 0.087,
+    "coupling_strength": 1.0
+  },
+  "samples": [
+    {"sample_id": "current_default", "jr_noise_scale": 1.0},
+    {"sample_id": "origin_noise", "jr_noise_scale": 0.2757716446627535},
+    {"sample_id": "origin_variant", "jr_active_A": 3.5, "jr_mu": 0.083, "jr_noise_scale": 0.4136574669941303}
+  ]
+}

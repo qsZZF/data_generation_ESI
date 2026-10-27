@@ -1,0 +1,28 @@
+{
+  "sample_id": "nmm_aal78_demo",
+  "atlas": "aal78",
+  "preset": "spike_origin",
+  "provider": "cache",
+  "bank_dir": "generated_simulation_dataset/NMM_unified/aal78",
+  "active_regions": [
+    25,
+    30,
+    42,
+    48,
+    52,
+    72
+  ],
+  "source_mode": "selected",
+  "duration_s": 2,
+  "trajectory_duration_s": 4,
+  "warmup_s": 1,
+  "srate": 500,
+  "random_seed": 20261016,
+  "background_seed": 20261018,
+  "source_snr_db": 10,
+  "sensor_noise_type": "iid_white",
+  "sensor_seed": 20261019,
+  "sensor_snr_db": 10,
+  "average_reference": true,
+  "normalize_source": true
+}

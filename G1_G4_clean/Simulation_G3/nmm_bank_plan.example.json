@@ -1,0 +1,17 @@
+{
+  "atlas_id": "legacy998_export994",
+  "projection_path": "../Anatomy/FS_994nmm_to_20k.mat",
+  "defaults": {
+    "simulation_length_ms": 1000.0,
+    "warmup_ms": 1000.0,
+    "dt_ms": 0.5,
+    "output_srate_hz": 500.0,
+    "normalize": false,
+    "reshape_to_994": true,
+    "active_regions": [10]
+  },
+  "samples": [
+    {"sample_id": "rest_seed0", "signal_type": "resting_jr", "active_regions": [], "random_seed": 0},
+    {"sample_id": "alpha_seed1", "signal_type": "alpha_jr", "coupling_strength": 0.8, "jr_noise_scale": 0.8, "random_seed": 1}
+  ]
+}

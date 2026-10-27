@@ -1,0 +1,15 @@
+# Direct dependencies; exact versions used for validation are in tested_environment.json.
+# Select a PyTorch CPU/CUDA build suitable for the target machine. No packages installed by this snapshot.
+numpy
+scipy
+h5py
+matplotlib
+tvb-library
+numba
+torch
+nibabel
+nilearn
+mne
+pandas
+requests
+zarr

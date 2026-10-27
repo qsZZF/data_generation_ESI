@@ -1,0 +1,19 @@
+{
+  "python": "3.12.1",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "packages": {
+    "numpy": "2.4.4",
+    "scipy": "1.17.1",
+    "h5py": "3.16.0",
+    "matplotlib": "3.10.9",
+    "tvb-library": "2.10.0",
+    "numba": "0.65.1",
+    "torch": "2.5.1+cu121",
+    "nibabel": "5.4.2",
+    "nilearn": "0.13.1",
+    "mne": "1.12.1",
+    "pandas": "3.0.2",
+    "requests": "2.33.1",
+    "zarr": "3.4.0"
+  }
+}

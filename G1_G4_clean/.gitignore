@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.tvb_home/
+Anatomy/
+anatomy/
+generated_simulation_dataset/
+generated*/
+nmm_spikes/
+*.pt
+*.pth
+*.log

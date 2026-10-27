@@ -1,0 +1,20 @@
+{
+  "atlas": "aal78",
+  "defaults": {
+    "simulation_length_ms": 10000,
+    "warmup_ms": 1000,
+    "dt_ms": 0.5,
+    "output_srate_hz": 500,
+    "normalize": false,
+    "jr_coupling_mode": "sparse",
+    "jr_background_A": 3.25,
+    "jr_mu": 0.087,
+    "jr_noise_scale": 0.2757716446627535,
+    "coupling_strength": 1.0
+  },
+  "samples": [
+    {"sample_id": "aal_rest_20261016", "signal_type": "resting_jr", "active_regions": [], "random_seed": 20261016},
+    {"sample_id": "aal_spike_20261016", "signal_type": "spike_jr", "active_regions": [25, 30, 42, 48, 52, 72], "jr_active_A": 3.6, "random_seed": 20261016},
+    {"sample_id": "aal_spike_20261017", "signal_type": "spike_jr", "active_regions": [25, 30, 42, 48, 52, 72], "jr_active_A": 3.6, "random_seed": 20261017}
+  ]
+}

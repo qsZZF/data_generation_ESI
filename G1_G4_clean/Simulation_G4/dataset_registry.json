@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "source": "https://github.com/braindecode/OpenEEGBench/blob/main/open_eeg_bench/default_configs/datasets.py",
+  "verified_date": "2026-10-07",
+  "notes": "Dataset revisions and exact benchmark partitions verified against the primary configuration. Units, sfreq and channels must be verified from each actual recording; dataset cards are not sufficient. Registry presence does not imply downloaded data, rights clearance, or completed training. Non-subject benchmark partitions must not be described as subject generalization.",
+  "datasets": {
+    "arithmetic_zyma2019": {
+      "hf_id": "braindecode/arithmetic_zyma2019", "revision": "8359206e7e1b3d1f068033348e291d6677be1920", "n_classes": 2,
+      "scenario": "mental arithmetic versus rest", "original_source": "https://physionet.org/content/eegmat/1.0.0/",
+      "benchmark_split": {"metadata_key": "subject", "train": ["00","01","02","03","04","05","06","07","08","09","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27"], "val": ["28","29","30","31"], "test": ["32","33","34","35"]}
+    },
+    "bcic2a": {
+      "hf_id": "braindecode/bcic2a", "revision": "3585206f74463e787688a0f4afd12605c9be700c", "n_classes": 4,
+      "scenario": "motor imagery", "benchmark_split": {"metadata_key": "subject", "train": [1,2,3], "val": [4,5,6], "test": [7,8,9]}
+    },
+    "bcic2020_3": {
+      "hf_id": "braindecode/bcic2020-3", "revision": "8e2addefed44280be79b0c29bb09cc4c723cf18d", "n_classes": 5,
+      "scenario": "imagined speech", "benchmark_split": {"metadata_key": "run", "train": ["00"], "val": ["01"], "test": ["02"]}
+    },
+    "physionet": {
+      "hf_id": "braindecode/physionet", "revision": "3c9cf8b242ca49550a43028bde3c6db3f1353b51", "n_classes": 4,
+      "scenario": "four-class motor imagery: left hand, right hand, both hands and feet; benchmark subset does not establish an execution-versus-imagery contrast", "original_source": "https://physionet.org/content/eegmmidb/1.0.0/",
+      "benchmark_split": {"metadata_key": "subject", "train": [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70], "val": [71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89], "test": [90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109]}
+    },
+    "chbmit": {
+      "hf_id": "braindecode/chbmit", "revision": "3c7fc5537fb22686b2aafa8eb1a30d292c4464ab", "n_classes": 2,
+      "scenario": "seizure detection; bipolar montage needs an explicit observation operator",
+      "benchmark_split": {"metadata_key": "subject", "train": ["chb01","chb02","chb03","chb04","chb05","chb06","chb07","chb08","chb09","chb10","chb11","chb12","chb13","chb14","chb15","chb16","chb17","chb18","chb19"], "val": ["chb20","chb21"], "test": ["chb22","chb23"]}
+    },
+    "faced": {
+      "hf_id": "braindecode/faced", "revision": "18c73355fc71c055e92828384da85bb49bc6e3c0", "n_classes": 9,
+      "scenario": "video-elicited emotion; preserve stimulus identity for held-out-video evaluation",
+      "benchmark_split": {"metadata_key": "subject", "train": ["000","001","002","003","004","005","006","007","008","009","010","011","012","013","014","015","016","017","018","019","020","021","022","023","024","025","026","027","028","029","030","031","032","033","034","035","036","037","038","039","040","041","042","043","044","045","046","047","048","049","050","051","052","053","054","055","056","057","058","059","060","061","062","063","064","065","066","067","068","069","070","071","072","073","074","075","076","077","078","079"], "val": ["080","081","082","083","084","085","086","087","088","089","090","091","092","093","094","095","096","097","098","099"], "test": ["100","101","102","103","104","105","106","107","108","109","110","111","112","113","114","115","116","117","118","119","120","121","122"]}
+    },
+    "isruc_sleep": {
+      "hf_id": "braindecode/isruc-sleep", "revision": "beda68130bc3a84c8e6abf11c527d7c5ff941616", "n_classes": 5,
+      "scenario": "sleep staging", "benchmark_split": {"metadata_key": "subject", "train": ["I011","I013","I014","I017","I019","I020","I021","I023","I025","I027","I028","I029","I030","I031","I032","I033","I034","I035","I036","I037","I038","I039","I041","I042","I043","I044","I045","I046","I047","I048","I049","I050","I051","I052","I053","I054","I055","I056","I057","I058","I059","I060","I061","I062","I063","I064","I065","I066","I067","I068","I069","I070","I071","I072","I073","I074","I075","I076","I077","I078","I079","I080"], "val": ["I081","I082","I083","I084","I085","I086","I087","I088","I089","I090"], "test": ["I091","I092","I093","I094","I095","I096","I097","I098","I099","I100"]}
+    },
+    "mdd_mumtaz2016": {
+      "hf_id": "braindecode/mdd_mumtaz2016", "revision": "53cd9de1af5f09209d8a0f4fe20aa325c6a5fedb", "n_classes": 2,
+      "scenario": "major depression detection", "benchmark_split": {"metadata_key": "subject", "train": ["HS1","HS10","HS11","HS12","HS13","HS14","HS15","HS16","HS17","HS18","HS19","HS2","HS20","HS21","HS22","MDDS1","MDDS10","MDDS11","MDDS12","MDDS13","MDDS14","MDDS15","MDDS16","MDDS17","MDDS18","MDDS19","MDDS2","MDDS20","MDDS21"], "val": ["HS23","HS24","HS25","MDDS22","MDDS23","MDDS24","MDDS25"], "test": ["HS26","HS27","HS28","HS29","HS3","HS30","HS4","HS5","HS6","HS7","HS8","HS9","MDDS26","MDDS27","MDDS28","MDDS29","MDDS3","MDDS30","MDDS31","MDDS32","MDDS33","MDDS34","MDDS4","MDDS5","MDDS6","MDDS7","MDDS8","MDDS9"]}
+    },
+    "seed_v": {
+      "hf_id": "braindecode/seed-v", "revision": "b3498f4b045ade3093ecc646e2162057309479d3", "n_classes": 5,
+      "scenario": "emotion recognition", "benchmark_split": {"metadata_key": "session", "train": ["01"], "val": ["02"], "test": ["03"]}
+    },
+    "seed_vig": {
+      "hf_id": "braindecode/seed-vig", "revision": "896f1ad81375dc1aaf53f6e73d9d0c829be7bb40", "n_classes": null,
+      "scenario": "continuous vigilance regression", "benchmark_split": {"metadata_key": "subject", "train": ["01","02","03","10","11","12","13","14","15","16","17","18","19","20","21"], "val": ["04","05"], "test": ["06","07","08","09"]}
+    },
+    "tuab": {
+      "hf_id": "braindecode/tuab", "revision": "7afcc5a00b50cac0f7e6e7f36928f7ccd8b91744", "n_classes": 2,
+      "scenario": "abnormal EEG; verify upstream data-use agreement before download",
+      "benchmark_split": {"metadata_key": "train", "train": [true], "val": null, "val_size": 0.2, "test": [false]}
+    },
+    "tuev": {
+      "hf_id": "braindecode/tuev", "revision": "a16d2dcaf354a4c1fa1d31e1e591294802939868", "n_classes": 6,
+      "scenario": "EEG event detection; verify upstream data-use agreement before download",
+      "benchmark_split": {"metadata_key": "split", "train": ["train"], "val": null, "val_size": 0.2, "test": ["eval"]}
+    }
+  }
+}

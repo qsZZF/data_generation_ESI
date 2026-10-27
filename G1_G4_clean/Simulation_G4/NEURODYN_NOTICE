@@ -1,0 +1,12 @@
+Simulation_G4/inverse.py contains a modified adaptation of NeuroDyn-EEG.
+Upstream: https://github.com/Gnosis-Neurodynamics/NeuroDyn-EEG
+Commit: c9dd9074818e80bfe8e8ba7b2787cf5d8a2be38c
+Original file: TrainWorks/src/model.py; license Apache-2.0.
+Original source did not include a separate NOTICE file or copyright header.
+Modifications: physical-unit names, joint bounds, relative regularization,
+compact profile, explicit training splits, normalized loss and prediction helpers.
+No upstream pretrained weights or omitted forward-model resources are included.
+
+Also bundled: reference/aal_regions.csv, copied unchanged from upstream
+validation/config/aal_regions.csv at the same commit and under the accompanying
+Apache-2.0 project license. It is an atlas index lookup, not an EEG recording.
