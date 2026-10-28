@@ -1,7 +1,7 @@
 {
   "source_root": "E:\\SourceDataGeneration",
   "destination": "E:\\SourceDataGeneration\\G1_G4_clean",
-  "scope": "code, configs, tests, usage and attribution only",
+  "scope": "code, configs, tests, usage, attribution and curated fsaverage5 derived assets",
   "excluded": [
     "anatomy binaries",
     "EEG/NMM datasets",
@@ -35,10 +35,10 @@
     },
     "scripts/project_network_priors_to_fsaverage5.py": {
       "original": "scripts/project_network_priors_to_fsaverage5.py",
-      "original_sha256": "eef7ea8e4f64d37c895c90fd569cdef65f3ed036ba6dde76eae86295ca085119",
+      "original_sha256": "eac41b11eaef7c4896ee90993dd404470c39bf77efca3bbdfeae10d389e41b96",
       "changes": [],
-      "copied_sha256": "eef7ea8e4f64d37c895c90fd569cdef65f3ed036ba6dde76eae86295ca085119",
-      "bytes": 14930,
+      "copied_sha256": "eac41b11eaef7c4896ee90993dd404470c39bf77efca3bbdfeae10d389e41b96",
+      "bytes": 14924,
       "byte_identical_to_original": true
     },
     "simulate_source_sensor.py": {
@@ -859,21 +859,53 @@
       "copied_sha256": "2f7632271e3741a14a18725adcad20afefa57e70386948c41911d6c78a630ccc",
       "bytes": 1822,
       "byte_identical_to_original": true
+    },
+    "build_fs_coactive.py": {
+      "original": "build_fs_coactive.py",
+      "changes": [],
+      "original_sha256": "2d1ebdc27b478fa0f7bde2ae407acc2c9adf50fb5fd5a542113bf8930153a000",
+      "copied_sha256": "2d1ebdc27b478fa0f7bde2ae407acc2c9adf50fb5fd5a542113bf8930153a000",
+      "bytes": 10688,
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_fs5_asset_release.py": {
+      "original": "scripts/prepare_fs5_asset_release.py",
+      "changes": [],
+      "original_sha256": "4b55d8a2551c25dd59397395cf7cb56a4ff2c08fc6fea82dab74a99f0db3cdb9",
+      "copied_sha256": "4b55d8a2551c25dd59397395cf7cb56a4ff2c08fc6fea82dab74a99f0db3cdb9",
+      "bytes": 8895,
+      "byte_identical_to_original": true
+    },
+    "tests/test_coactive_builder.py": {
+      "original": "tests/test_coactive_builder.py",
+      "changes": [],
+      "original_sha256": "e77d81fb70f91760bfdf8e9f2b0d06a43ce3f4491bba2097aee796883f4a5cb4",
+      "copied_sha256": "e77d81fb70f91760bfdf8e9f2b0d06a43ce3f4491bba2097aee796883f4a5cb4",
+      "bytes": 7587,
+      "byte_identical_to_original": true
+    },
+    "tests/test_fs5_asset_release.py": {
+      "original": "tests/test_fs5_asset_release.py",
+      "changes": [],
+      "original_sha256": "cfb5ddfcfc03f531168aea196d171f575c0db5be0e685ec292f0d8c6265c2568",
+      "copied_sha256": "cfb5ddfcfc03f531168aea196d171f575c0db5be0e685ec292f0d8c6265c2568",
+      "bytes": 4153,
+      "byte_identical_to_original": true
     }
   },
-  "completed_at": "2026-10-27T19:55:32.462091+00:00",
+  "completed_at": "2026-10-28T17:57:15.509173+00:00",
   "added_files": {
     ".gitignore": {
       "sha256": "24a43e8fc01e1cfb27d1a2635a7b5330a58a5a8537450ff4e76dcbd9cb82d1cf",
       "bytes": 166
     },
     "EXTERNAL_ASSETS.md": {
-      "sha256": "f0897d3c8bf2d8ba2058914ea4c67aa333ea15818b0050d22c229e74516a3ba0",
-      "bytes": 3125
+      "sha256": "fe92ded2a401f267d1367837b88ea2f9c02b2ee458bcd31c6b179572acf86ddc",
+      "bytes": 3493
     },
     "README.md": {
-      "sha256": "056c50234c0e57c9bc1f66ab1604e525d20321d3ffa1729dd2c2f0e60e2ab224",
-      "bytes": 4297
+      "sha256": "94ee1939fcb29bf9e5e5dec1fb01fbf4114e9f28b2cb9e2983e7b8f6f426a5c3",
+      "bytes": 4481
     },
     "requirements.txt": {
       "sha256": "0a70ba3e8774da01cfa4f378ff0570084a6b00a83cdadd060e85563fa9ff3235",
@@ -888,16 +920,16 @@
       "bytes": 420
     },
     "VALIDATION.md": {
-      "sha256": "fd2dc1f4f0ef8746c158b52a0316940e12a466647fd00c989be2a70ea0417e96",
-      "bytes": 13859
+      "sha256": "28261d52834d5ed025a381c661f834863d3dbb4678f97ab9f06344c302ae0c9b",
+      "bytes": 15501
     },
     ".gitattributes": {
-      "sha256": "8a341e319197a1cb2db9b02b47a1c833918873ca69de24f5010697efe2aa0427",
-      "bytes": 151
+      "sha256": "97c8ed12200329359dd22869ad29ce96d5b8600d5b97a6cf04598f83892488dd",
+      "bytes": 261
     }
   },
   "validation": {
-    "tests": 327,
+    "tests": 338,
     "failures": 0,
     "errors": 0,
     "skipped": [
@@ -955,8 +987,8 @@
     "external_anatomy_present": false,
     "source_root_on_import_path": false
   },
-  "python_files": 86,
-  "copied_files_count": 101,
+  "python_files": 90,
+  "copied_files_count": 105,
   "spatial_update": {
     "date": "2026-10-20",
     "files": [
@@ -1277,5 +1309,30 @@
       "events": 32
     },
     "claim": "descriptive pilot; state-dependent agreement; not ESI accuracy validation"
+  },
+  "fs5_asset_release": {
+    "date": "2026-10-29",
+    "code_files": [
+      "build_fs_coactive.py",
+      "scripts/project_network_priors_to_fsaverage5.py",
+      "scripts/prepare_fs5_asset_release.py",
+      "tests/test_coactive_builder.py",
+      "tests/test_fs5_asset_release.py"
+    ],
+    "asset_manifest": "projected_source_priors/fsaverage5_20k/ASSET_MANIFEST.json",
+    "asset_manifest_sha256": "7639f53da6e32708035d733ee183872a651ff0519f1f9f4db33bfa16dc6ea1b6",
+    "total_asset_bytes": 1595464476,
+    "coactive_lfs_oid": "85f3c235b9f58dbde604872d6ff6407bbb8340fd1b84d04761b57376534c3609",
+    "root_tests": {
+      "total": 345,
+      "passed": 343,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 338,
+      "passed": 329,
+      "skipped": 9
+    },
+    "validation_limits": "No full NiMARE rebuild or retrospective registration repair; historical coactive remains unverified"
   }
 }

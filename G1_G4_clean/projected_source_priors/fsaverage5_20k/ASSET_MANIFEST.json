@@ -1,0 +1,147 @@
+{
+  "schema": "fs5-derived-assets-v1",
+  "files": {
+    "SIM_data/SIM_data_fsaverage5_20k_source_priors_signed_maxabs.npz": {
+      "source_sha256": "91aa1d354777e55d51c02f286aa48303eb90e243a42b4b3da1a2ee149e78da4d",
+      "sha256": "c5de3df854ec18dafa3dff3186643036c285943a17d378798901aff1ab9910c3",
+      "bytes": 31159874,
+      "shape": [
+        20484,
+        200
+      ],
+      "dtype": "float32",
+      "numeric_arrays_preserved": true,
+      "label_conversion": "QC CSV row order to Unicode; original object arrays were not unpickled",
+      "alignment": "Brainstorm vertex order; NIfTI sampling uses legacy approximate surface coordinate transform",
+      "labels_verified_against_matlab": true
+    },
+    "SIM_data/SIM_data_fsaverage5_20k_source_priors_signed_maxabs.mat": {
+      "sha256": "d8f3e3e23db7f022a929d36f8d2aea5a877cc2e313aad528249bffbcbe84d0b5",
+      "bytes": 31080955,
+      "copy": "unchanged MATLAB companion"
+    },
+    "SIM_data/SIM_data_fsaverage5_20k_source_priors_abs_sum1.npz": {
+      "source_sha256": "c0e82b928cc2760eb3b1fda287a7e5bffb4cd0459e2eabd51b580dee450d1873",
+      "sha256": "6dd533ffdf2b7d4bbe0733ff8590cacfb71f825fe35c761e34ba1a3a18e5aa8a",
+      "bytes": 15424472,
+      "shape": [
+        20484,
+        200
+      ],
+      "dtype": "float32",
+      "numeric_arrays_preserved": true,
+      "label_conversion": "QC CSV row order to Unicode; original object arrays were not unpickled",
+      "alignment": "Brainstorm vertex order; NIfTI sampling uses legacy approximate surface coordinate transform",
+      "labels_verified_against_matlab": true
+    },
+    "SIM_data/SIM_data_fsaverage5_20k_source_priors_abs_sum1.mat": {
+      "sha256": "2ac29b51c18f46e91e8925969d099fa8b3bb3042103dabf6b242859bddbba4c8",
+      "bytes": 15425774,
+      "copy": "unchanged MATLAB companion"
+    },
+    "SIM_data/SIM_data_projection_qc.csv": {
+      "sha256": "fd09f256c3bc83b1d7a5d203e134064a7c5a2c5880bcaf5637c1e29cda998b1a",
+      "bytes": 76958
+    },
+    "neuro_motifs/neuro_motifs_fsaverage5_20k_source_priors_signed_maxabs.npz": {
+      "source_sha256": "0551afa17e8fcc8e5e18b3cdd7b09c330662c19a13a0b1f46453bfd7c27854d4",
+      "sha256": "2221e82d8225417557302165a0f087b4d92b07c40f4422c9462e307e3b2d53a2",
+      "bytes": 2930869,
+      "shape": [
+        20484,
+        15
+      ],
+      "dtype": "float32",
+      "numeric_arrays_preserved": true,
+      "label_conversion": "QC CSV row order to Unicode; original object arrays were not unpickled",
+      "alignment": "Brainstorm vertex order; NIfTI sampling uses legacy approximate surface coordinate transform",
+      "labels_verified_against_matlab": true
+    },
+    "neuro_motifs/neuro_motifs_fsaverage5_20k_source_priors_signed_maxabs.mat": {
+      "sha256": "c921432f2c60f778e32d9e9b514ce469ee7a4dd1f39446f0adcc9e97094d61e7",
+      "bytes": 2921022,
+      "copy": "unchanged MATLAB companion"
+    },
+    "neuro_motifs/neuro_motifs_fsaverage5_20k_source_priors_abs_sum1.npz": {
+      "source_sha256": "8d1240b8b0e2b12ee2c4d3037f7fdb22abefc37e96279a2a205e178d68c8a869",
+      "sha256": "402f4f108c9b91465c9448f6c5f7b1d9b6c5679b1520f32bb78280abf1e6c406",
+      "bytes": 1754333,
+      "shape": [
+        20484,
+        15
+      ],
+      "dtype": "float32",
+      "numeric_arrays_preserved": true,
+      "label_conversion": "QC CSV row order to Unicode; original object arrays were not unpickled",
+      "alignment": "Brainstorm vertex order; NIfTI sampling uses legacy approximate surface coordinate transform",
+      "labels_verified_against_matlab": true
+    },
+    "neuro_motifs/neuro_motifs_fsaverage5_20k_source_priors_abs_sum1.mat": {
+      "sha256": "c2d46d850d47eddc6ffd5ed1f8d01b4be8782e7bae7ec0827d9b7af055feadd7",
+      "bytes": 1752285,
+      "copy": "unchanged MATLAB companion"
+    },
+    "neuro_motifs/neuro_motifs_projection_qc.csv": {
+      "sha256": "39458fcd062366411098365c3ca52e5febceaaaf93c6e635f4a6f700c7384a8c",
+      "bytes": 7236
+    },
+    "coactive_legacy/macm_surface_z.npz": {
+      "shape": [
+        20484,
+        20484
+      ],
+      "dtype": "float32",
+      "all_matrix_values_finite": true,
+      "minimum": -0.2598297595977783,
+      "maximum": 10.680618286132812,
+      "metadata_shapes": {
+        "coords": [
+          20484,
+          3
+        ],
+        "vertno_lh": [
+          10242
+        ],
+        "vertno_rh": [
+          10242
+        ],
+        "voxel_mni": [
+          228483,
+          3
+        ],
+        "seed_vox_idx": [
+          20484
+        ],
+        "vox2surf": [
+          228483
+        ]
+      },
+      "sha256": "85f3c235b9f58dbde604872d6ff6407bbb8340fd1b84d04761b57376534c3609",
+      "bytes": 1492922912,
+      "copy": "original bytes unchanged",
+      "status": "legacy; coordinate registration and Brainstorm row correspondence unverified",
+      "interpretation": "directed standardized conditional association; not permutation Z, correlation or PSD covariance",
+      "coordinate_provenance": "frame not stored; inspected legacy builder compared source surface RAS to voxel world coordinates without explicit transform",
+      "projection_limitation": "legacy nearest-voxel seeds and all-mask-voxel-to-surface averaging; no cortical ribbon or distance cutoff",
+      "generation_provenance": "not recorded at artifact creation; inferred method is not verified execution provenance",
+      "legacy_code_inspected_sha256": "05385f936d6e1688710b0e11cfc72360a6c88ad11a37bcd9bf348b0f934c1286"
+    },
+    "README.md": {
+      "sha256": "7afd88983a30bbf954ac7a259f95a6190f620a7d6db762f5024c7dd689026c09",
+      "bytes": 6441
+    },
+    "coactive_legacy/provenance.json": {
+      "sha256": "36260b70b58dd368708c0059d072e83933c5d239f559b228d4c552f6497453e2",
+      "bytes": 1345
+    }
+  },
+  "storage": {
+    "network": "ordinary Git; numeric values preserved",
+    "coactive": "Git LFS; git lfs pull required"
+  },
+  "limitations": [
+    "network Brainstorm row alignment does not certify MNI registration",
+    "coactive cannot be used directly as EEG noise covariance or substituted for a matching source projection"
+  ],
+  "upstream": "User-generated NeuroVault/Neurosynth-derived statistical maps; retain original-source attribution and applicable terms"
+}

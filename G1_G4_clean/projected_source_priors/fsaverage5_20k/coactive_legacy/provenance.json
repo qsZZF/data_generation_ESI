@@ -1,0 +1,41 @@
+{
+  "shape": [
+    20484,
+    20484
+  ],
+  "dtype": "float32",
+  "all_matrix_values_finite": true,
+  "minimum": -0.2598297595977783,
+  "maximum": 10.680618286132812,
+  "metadata_shapes": {
+    "coords": [
+      20484,
+      3
+    ],
+    "vertno_lh": [
+      10242
+    ],
+    "vertno_rh": [
+      10242
+    ],
+    "voxel_mni": [
+      228483,
+      3
+    ],
+    "seed_vox_idx": [
+      20484
+    ],
+    "vox2surf": [
+      228483
+    ]
+  },
+  "sha256": "85f3c235b9f58dbde604872d6ff6407bbb8340fd1b84d04761b57376534c3609",
+  "bytes": 1492922912,
+  "copy": "original bytes unchanged",
+  "status": "legacy; coordinate registration and Brainstorm row correspondence unverified",
+  "interpretation": "directed standardized conditional association; not permutation Z, correlation or PSD covariance",
+  "coordinate_provenance": "frame not stored; inspected legacy builder compared source surface RAS to voxel world coordinates without explicit transform",
+  "projection_limitation": "legacy nearest-voxel seeds and all-mask-voxel-to-surface averaging; no cortical ribbon or distance cutoff",
+  "generation_provenance": "not recorded at artifact creation; inferred method is not verified execution provenance",
+  "legacy_code_inspected_sha256": "05385f936d6e1688710b0e11cfc72360a6c88ad11a37bcd9bf348b0f934c1286"
+}

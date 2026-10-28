@@ -33,8 +33,11 @@
 
 G1 LBO 模式另外需要基底缓存：在已配置当前 Brainstorm cortex 后，运行
 `python scripts/prepare_g1_lbo.py --modes 256`，写入 `Anatomy/G1_LBO/`。
-网络模式还需当前网格对齐的 `projected_source_priors/fsaverage5_20k/` 中的 signed_maxabs NPZ。
-这些二进制资产不随代码上传，不能直接用 Nilearn 顶点顺序替换。
+网络模式使用 `projected_source_priors/fsaverage5_20k/` 中已发布的 signed_maxabs NPZ。
+network 的顶点顺序与当前 Brainstorm 网格对应，但体积采样的坐标配准仍为历史近似。
+基底缓存、解剖网格和 leadfield 仍需外部提供，不能直接用 Nilearn 顶点顺序替换。
+`coactive_legacy` 中的原始矩阵使用 Git LFS 下载，坐标对应尚未验证，不直接接入 G1 生成器；
+它不是 EEG 噪声协方差。资产哈希、字段和限制见同目录的 README、ASSET_MANIFEST.json 和 provenance.json。
 真实信号验证脚本可下载一个小型官方 PhysioNet 子集，保存原始 EDF 的 URL、许可和 SHA256；
 完整的 EEGMAT 对照还需要原 G4 流程已准备的 arithmetic 导出。
 

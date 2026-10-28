@@ -182,8 +182,8 @@ def save_prior_files(
 ) -> None:
     payload = {
         "source_prior_weights": weights.astype(np.float32),
-        "network_names": np.asarray(names, dtype=object),
-        "source_paths": np.asarray([str(p) for p in files], dtype=object),
+        "network_names": np.asarray(names, dtype=str),
+        "source_paths": np.asarray([str(p) for p in files], dtype=str),
         "vertices_mni_mm": vertices_mni_mm.astype(np.float32),
         "vertices_brainstorm_mm": vertices_brainstorm_mm.astype(np.float32),
         "faces": faces.astype(np.int32),

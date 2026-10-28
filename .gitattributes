@@ -1,0 +1,2 @@
+G1_G4_clean/projected_source_priors/fsaverage5_20k/coactive_legacy/macm_surface_z.npz filter=lfs diff=lfs merge=lfs -text
+build_fs_coactive.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
