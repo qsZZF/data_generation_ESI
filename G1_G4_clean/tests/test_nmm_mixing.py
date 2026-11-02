@@ -22,16 +22,18 @@ class NMMMixingTests(unittest.TestCase):
     def sensors(self, source, **kwargs):
         # These fixed-size fixtures explicitly exercise a one-second override.
         kwargs.setdefault('baseline_duration_s', 1.)
+        kwargs.setdefault('sensor_snr_mode', 'global_rms')  # Legacy global-power regression fixtures.
         if np.any(source['source_background']):
             kwargs.setdefault('baseline_source', np.random.default_rng(611).normal(size=(3, 500)))
         return make_sensors(self.backend, source, **kwargs)
 
-    def mix(self, snr=3., normalize=True):
-        return mix_sources(self.fg, self.bg, self.projection, self.areas, snr, normalize)
+    def mix(self, snr=3., normalize=True, metric='vertex_mean'):
+        return mix_sources(self.fg, self.bg, self.projection, self.areas, snr, normalize,
+                           source_snr_metric=metric)
 
     def test_area_weighted_snr_and_common_normalization(self):
-        raw, _ = self.mix(normalize=False)
-        arrays, meta = self.mix()
+        raw, _ = self.mix(normalize=False, metric='area_weighted')
+        arrays, meta = self.mix(metric='area_weighted')
         self.assertAlmostEqual(meta['realized_source_snr_db'], 3., places=12)
         pf = np.average(np.mean(arrays['source_foreground'] ** 2, axis=1), weights=self.areas)
         pb = np.average(np.mean(arrays['source_background'] ** 2, axis=1), weights=self.areas)
@@ -42,6 +44,22 @@ class NMMMixingTests(unittest.TestCase):
         np.testing.assert_allclose(arrays['source'], self.projection @ arrays['region_source'])
         np.testing.assert_allclose(arrays['source'], arrays['source_foreground'] + arrays['source_background'])
         self.assertAlmostEqual(float(np.max(np.abs(arrays['source']))), 1.)
+
+    def test_vertex_mean_default_and_explicit_legacy_metric(self):
+        fg = np.array([[-1., 1.], [0., 0.]])
+        bg = np.array([[0., 0.], [-1., 1.]])
+        arrays, meta = mix_sources(fg, bg, np.eye(2), [1., 9.], 0., False)
+        self.assertAlmostEqual(np.mean(arrays['source_foreground'] ** 2),
+                               np.mean(arrays['source_background'] ** 2))
+        self.assertEqual(meta['source_snr_metric'], 'vertex_mean')
+        self.assertAlmostEqual(meta['realized_source_snr_db'], 0.)
+        self.assertAlmostEqual(meta['realized_area_weighted_source_snr_db'], -10*np.log10(9))
+        legacy, info = mix_sources(fg, bg, np.eye(2), [1., 9.], 0., False,
+                                   source_snr_metric='area_weighted')
+        self.assertAlmostEqual(info['realized_vertex_source_snr_db'], 10*np.log10(9))
+        self.assertEqual(info['source_representation'], 'per_vertex_activity')
+        with self.assertRaises(ValueError):
+            mix_sources(fg, bg, np.eye(2), [1., 9.], 0., False, source_snr_metric='unknown')
 
     def test_sensor_reference_snr_and_effective_target(self):
         source, _ = self.mix()

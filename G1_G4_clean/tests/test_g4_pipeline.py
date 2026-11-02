@@ -185,6 +185,11 @@ class G4PipelineTests(unittest.TestCase):
         self.assertEqual(training["best_epoch"], 1)
         self.assertIn("heldout_test_metrics", training)
         self.assertIn("prior_mean_test_metrics", training)
+        self.assertIn('heldout_recovery_detail',training)
+        self.assertIn('within_draw_regional_residual',training['heldout_recovery_detail']['C1']['prediction'])
+        with np.load(output/training['heldout_parameter_file']) as recovered:
+            self.assertEqual(recovered['prediction_C1'].shape,recovered['truth_C1'].shape)
+            np.testing.assert_array_equal(recovered['draw_indices'],splits['test'])
         self.assertIn("synthetic_marginal_calibration", training)
         self.assertEqual(len((output / "training_progress.jsonl").read_text().splitlines()), 1)
         checkpoint = torch.load(output / "best_checkpoint.pt", map_location="cpu", weights_only=True)
@@ -247,16 +252,27 @@ class G4PipelineTests(unittest.TestCase):
         self.assertFalse((output / "reconstruction_report.json").exists())
         checkpoint_before = (output / "best_checkpoint.pt").read_bytes()
         with patch("Simulation_G4.pipeline.train_from_arrays") as trainer, \
-                patch("Simulation_G4.pipeline.simulate", side_effect=self._fake_simulate), \
+                patch("Simulation_G4.pipeline.simulate", side_effect=self._fake_simulate) as simulator, \
                 contextlib.redirect_stdout(io.StringIO()):
             report = reconstruct_dataset(
                 "synthetic_test_only", [self.measured], self.atlas, self.connectivity,
                 self.bank, self.directory / "output", device="cpu", seed=91,
             )
             trainer.assert_not_called()
+            self.assertEqual(simulator.call_count, 6)
+            for call in simulator.call_args_list:
+                self.assertEqual(call.kwargs['drive_mode'], 'independent')
+                self.assertEqual(call.kwargs['drive_correlation'], 0.)
         self.assertEqual(report["groups"][0]["status"], "forward_checked")
         self.assertEqual((output / "best_checkpoint.pt").read_bytes(), checkpoint_before)
         self.assertEqual(report["measured_window_count"], 8)
+        config_path = self.bank / "config.json"
+        changed = json.loads(config_path.read_text())
+        changed.update(drive_mode='shared', drive_correlation=1.)
+        config_path.write_text(json.dumps(changed))
+        with self.assertRaisesRegex(ValueError, 'Checkpoint dataset or source bank differs'):
+            reconstruct_dataset("synthetic_test_only", [self.measured], self.atlas, self.connectivity,
+                                self.bank, self.directory / "output", device="cpu")
 
     def _reconstruction_fixture(self, groups=1):
         eeg, provenance, _, leadfield, _ = load_measured([self.measured], self.atlas, sampling_rate_hz=100)
@@ -294,6 +310,10 @@ class G4PipelineTests(unittest.TestCase):
             artifact.write_bytes(b"interrupted or corrupted archive")
             reconstruct_groups(None, altered, provenance, self.atlas, self.connectivity, leadfield, output, **options)
             self.assertEqual(simulator.call_count, 24)
+            reconstruct_groups(None, altered, provenance, self.atlas, self.connectivity, leadfield, output,
+                               drive_mode='mixed', drive_correlation=.2, **options)
+            self.assertEqual(simulator.call_count, 30)
+            self.assertEqual(simulator.call_args.kwargs['drive_correlation'], .2)
         self.assertFalse(list(output.rglob("*.part")))
         cache = json.loads(artifact.with_suffix(".json").read_text())
         self.assertEqual(len(cache["fingerprint"]), 64)
@@ -324,7 +344,7 @@ class G4PipelineTests(unittest.TestCase):
                 results.append(reconstruct_groups(
                     None, eeg, provenance, self.atlas, self.connectivity, leadfield, output,
                     sampling_rate_hz=100, prior_parameters=prior, device="cpu", warmup_s=0.1,
-                    reconstruction_workers=workers,
+                    reconstruction_workers=workers, drive_mode='mixed', drive_correlation=.2,
                 ))
         self.assertEqual(results[0], results[1])
         for result in results[0]:

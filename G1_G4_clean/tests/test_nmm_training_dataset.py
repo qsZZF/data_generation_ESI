@@ -59,10 +59,9 @@ class NMMTrainingDatasetTests(unittest.TestCase):
 
     def test_partition_spatial_and_both_snrs_survive_float32_export(self):
         self.build(source_mode='partition',source_snr_db=20,sensor_snrs=(10,),
-                   spatial_profiles=('diffuse',),sensor_noise_types=('iid_white',))
+                   spatial_profiles=('diffuse',),sensor_noise_types=('iid_white',),sensor_snr_mode='global_rms')
         sample=NMMRecipeDataset(self.root/'index',self.backend)[0]
-        areas=self.backend.vertex_area
-        power=lambda value:np.average(np.mean(value.astype(float)**2,axis=1),weights=areas)
+        power=lambda value:np.mean(value.astype(float)**2)
         ratio=10*np.log10(power(sample['source_foreground'])/power(sample['source_background']))
         self.assertAlmostEqual(ratio,20,places=5)
         sensor_snr=10*np.log10(np.mean(sample['clean_sensor'].astype(float)**2)/np.mean(sample['sensor_noise'].astype(float)**2))
@@ -71,6 +70,41 @@ class NMMTrainingDatasetTests(unittest.TestCase):
         np.testing.assert_allclose(sample['sensor'],sample['clean_sensor']+sample['sensor_noise'],atol=2e-6)
         self.assertEqual(sample['manifest']['background_policy'],'same_trajectory_partition_reweighted')
         self.assertFalse(sample['manifest']['source_matches_static_projection'])
+
+    def test_missing_metric_replays_legacy_area_weighted_recipe(self):
+        self.build(source_mode='partition', source_snr_db=20, sensor_snrs=(None,))
+        dataset = NMMRecipeDataset(self.root/'index', self.backend)
+        dataset.manifest['schema'] = 'nmm-periods-v1'
+        row = dataset.recipe(0)
+        self.assertEqual(row['config'].pop('source_snr_metric'), 'vertex_mean')
+        with patch.object(dataset, 'recipe', return_value=row):
+            sample = dataset[0]
+        power = lambda value: np.average(np.mean(value.astype(float)**2, axis=1), weights=self.backend.vertex_area)
+        self.assertAlmostEqual(10*np.log10(power(sample['source_foreground'])/power(sample['source_background'])), 20, places=5)
+        self.assertEqual(sample['manifest']['source_snr_metric'], 'area_weighted')
+
+    def test_v5_requires_explicit_semantics_for_replay(self):
+        manifest = self.build(sensor_snrs=(None,))
+        self.assertEqual(manifest['schema'], 'nmm-periods-v5')
+        dataset = NMMRecipeDataset(self.root/'index', self.backend)
+        row = dataset.recipe(0)
+        row['config'].pop('source_snr_metric')
+        with patch.object(dataset, 'recipe', return_value=row):
+            with self.assertRaisesRegex(ValueError, 'v2/v3 recipe requires'):
+                dataset[0]
+
+    def test_physical_period_configuration_and_labels(self):
+        amplitude = dict(amplitude_mode='physical', foreground_peak_am=1e-9,
+                         leadfield_source_unit='A*m', sensor_units='V', sensor_noise_std=1e-6)
+        self.build(sensor_snrs=(None,), normalize_source=False, amplitude_settings=amplitude,
+                   record_observability=True)
+        dataset = NMMRecipeDataset(self.root/'index', self.backend)
+        first = dataset[0]
+        self.assertEqual(first['manifest']['source_unit'], 'A*m')
+        self.assertAlmostEqual(np.max(abs(first['source_foreground']))/1e-9, 1., places=6)
+        self.assertIn('observability', first['manifest'])
+        repeated = dataset[0]
+        self.assertEqual(first['manifest']['observability'], repeated['manifest']['observability'])
 
     def test_spatial_modulation_does_not_turn_psp_offset_into_activity(self):
         for profile in ('uniform','decay','diffuse','contract','pulse'):

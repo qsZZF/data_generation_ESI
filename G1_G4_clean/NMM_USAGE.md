@@ -2,10 +2,17 @@
 
 ## Per-sample baseline covariance for ESI whitening
 
+For geodesic G1 geometry, physical current/fixed measurement-noise contracts and
+optional per-sample observability labels, see [the current extension](GEOMETRY_UNITS_OBSERVABILITY.md).
+The SNR-calibration descriptions below refer to relative mode; physical mode
+uses explicit measurement-noise amplitude. New period plans use schema v3, while
+v1/v2 relative-mode plans remain supported.
+
 Every generated sensor sample now supplies `baseline_sensor` (float32,
 channels x baseline samples) and three float64 channel-by-channel matrices:
 
-- `noise_covariance`: centered empirical covariance of the exported baseline,
+- `noise_covariance`: covariance of the exported baseline (empirical by default;
+  optional `covariance_estimator="oas"` shrinks within the reference subspace),
   with denominator `B-1`. This is the default for whitening.
 - `oracle_noise_covariance`: covariance of the known event background plus
   measurement noise. Diagnostic simulation truth only, not an inverse input.
@@ -186,12 +193,19 @@ seeded resting JR cortical record. Both are temporally demeaned. The mixture is
 
 with
 
-`alpha = sqrt(P_area(S) / (P_area(B) * 10**(source_snr_db/10)))`.
+`alpha = sqrt(P_vertex(S) / (P_vertex(B) * 10**(source_snr_db/10)))`.
 
-`P_area` is the temporal mean-square activity averaged over the **entire mesh**
-using vertex-area weights, including zero foreground values outside the selected
-patches. Calibration occurs after parcel-to-vertex projection, not in parcel
-space. This makes the reference explicit despite different parcel sizes.
+`P_vertex` is the unweighted temporal mean-square activity averaged over the
+**entire mesh**, including zero foreground outside the selected patches.
+Calibration occurs after projection. Set `source_snr_metric="area_weighted"`
+to reproduce the older area-weighted calibration. Old period recipes without
+this field retain their original area-weighted semantics; newly built recipes
+record the metric explicitly. Both realized metrics remain available as diagnostics.
+
+The `aal78_membership` profile gives each assigned vertex weight one, in a
+separate derived bundle. The old `aal78` area-unit-sum profile remains available.
+See [the correctness/realism release](GENERATION_REALISM_UPDATE.md) for migration
+and the new optional cortical-rest background and covariance settings.
 
 - The automatically generated background uses `rest_control`, with no perturbed
   regions, a different recorded simulation seed and the same atlas/clock.

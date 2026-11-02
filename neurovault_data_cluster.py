@@ -3,18 +3,26 @@
 import os
 import re
 
-import matplotlib.pyplot as plt
-import nibabel as nib
-import nilearn.plotting
 import numpy as np
-import scipy
-import sklearn.cluster
-import tqdm
-import wordcloud
-import pandas as pd
+from network_cluster_utils import mask_aligned_images, write_provenance
 
-def main(path_prefix: str = '.'):
-    img_count = 25000  # Number of images to download, set as what you want
+def main(path_prefix: str = '.', *, seed=0, img_count=25000, download=False):
+    import matplotlib.pyplot as plt
+    import nibabel as nib
+    import nilearn.datasets
+    import nilearn.image
+    import nilearn.maskers
+    import nilearn.plotting
+    import scipy.cluster.hierarchy
+    import scipy.stats
+    import sklearn.cluster
+    import sklearn.decomposition
+    import sklearn.preprocessing
+    import tqdm
+    import wordcloud
+    import pandas as pd
+
+    rng = np.random.default_rng(seed)
 
     base_path = f'{path_prefix}/assets'
 
@@ -22,13 +30,12 @@ def main(path_prefix: str = '.'):
     if not os.path.exists(nilearn_data_path):
         os.makedirs(nilearn_data_path)
 
-    # Download statistical maps and Neurosynth term weights.
-    # Setting mode='download_new' avoids re-downloading existing files on reruns.
-    # NeuroVault fetch also grabs Neurosynth metadata so semantic summaries stay aligned with maps.
-    nv_data = nilearn.datasets.fetch_neurovault(max_images=img_count, fetch_neurosynth_words=True, data_dir=nilearn_data_path, mode='download_new', verbose=1)
+    # Use the local cache unless downloads were explicitly requested.
+    nv_data = nilearn.datasets.fetch_neurovault(max_images=img_count, fetch_neurosynth_words=True,
+        data_dir=nilearn_data_path, mode='download_new' if download else 'offline', verbose=1)
 
     term_weights = nv_data['word_frequencies']
-    vocabulary = nv_data['vocabulary']
+    vocabulary = np.asarray(nv_data['vocabulary'], dtype=str)
 
     # Clean and report term scores
     term_weights[term_weights < 0] = 0
@@ -47,7 +54,8 @@ def main(path_prefix: str = '.'):
     stopwords.add('cortex')
 
     # Generate a word cloud to visualize most frequent Neurosynth descriptors.
-    word_cloud = wordcloud.WordCloud(scale=4, collocations=False, background_color='white', max_words=16).generate(vocabulary_clean)
+    word_cloud = wordcloud.WordCloud(scale=4, collocations=False, background_color='white',
+        max_words=16, random_state=seed, stopwords=stopwords).generate(vocabulary_clean)
 
     # Display the generated Word Cloud
     _ = plt.figure(figsize=(12, 6))
@@ -63,55 +71,42 @@ def main(path_prefix: str = '.'):
 
     # Images may fail to be transformed, and are of different shapes,
     # so we need to transform one-by-one and keep track of failures.
-    X = []
-    # Track per-image usability so metadata and term weights stay aligned.
-    is_usable = np.ones((img_count,), dtype=bool)
-
-    for idx, image_path in enumerate(nv_data['images']):
-        # load image and remove nan and inf values.
-        # applying smooth_img to an image with fwhm=None simply cleans up
-        # non-finite values but otherwise doesn't modify the image.
-        try:
-            # smooth_img with fwhm=None just ensures finite voxels before masking.
-            X.append(masker.transform(nilearn.image.smooth_img(image_path, fwhm=None)).astype(np.float32))
-        except Exception as e:
-            meta = nv_data['images_meta'][idx]
-            print(
-                f"Failed to mask/reshape image: id: {meta.get('id')}; "
-                f"name: {meta.get('name')}; "
-                f"collection: {meta.get('collection_id')}; error: {e}"
-            )
-            is_usable[idx] = False
-
-    # Stack valid maps and drop metadata rows for failed downloads.
-    X = np.vstack(X)
-    term_weights = term_weights[is_usable, :]
+    X, term_weights, is_usable = mask_aligned_images(nv_data['images'], term_weights,
+        lambda path: masker.transform(nilearn.image.smooth_img(path, fwhm=None)).astype(np.float32),
+        on_error=lambda idx, path, error: print(f'Failed to mask image {idx}: {path}: {error}'))
+    if len(X) < 3500:
+        raise ValueError(f'CLASS bootstrap requires 3500 usable images; got {len(X)}')
+    write_provenance(os.path.join(base_path, 'cluster_provenance.json'), seed=seed,
+        arrays=dict(X=X, term_weights=term_weights, vocabulary=vocabulary,
+                    image_paths=np.asarray(nv_data['images'], dtype=str), is_usable=is_usable),
+        settings=dict(requested_images=img_count, actual_images=len(is_usable),
+                      iterations=200, components=70, samples_per_iteration=3500,
+                      clustering='average linkage cosine on semantic profiles', clusters=200))
 
     # Persist transformed maps and term weights for reuse across runs.
-    np.savez_compressed(os.path.join(base_path, f'X_and_term_weights_{img_count}.npz'), X=X, term_weights=term_weights)
+    np.savez_compressed(os.path.join(base_path, f'X_and_term_weights_{len(X)}.npz'),
+                        X=X, term_weights=term_weights, vocabulary=vocabulary, seed=seed)
 
     # ICA on full dataset
     n_components = 10
-    fast_ica = sklearn.decomposition.FastICA(n_components=n_components, random_state=0)
+    fast_ica = sklearn.decomposition.FastICA(n_components=n_components, random_state=seed)
     ica_maps = fast_ica.fit_transform(X.T).T
 
     term_weights_for_components_ICA = np.dot(fast_ica.components_, term_weights)
 
-    # PCA on smoothed dataset
+    # Exploratory PCA: flattened voxel indices are not spatial neighbours.
     scaler = sklearn.preprocessing.StandardScaler()
-    # Transpose yields voxels as features; scaling prevents high-variance voxels from dominating.
+    # Standardize each image over its masked voxels in this exploratory branch.
     X_scaled = scaler.fit_transform(X.T)  # Caution for X.T
     X_scaled = X_scaled.astype(np.float32)
-    # Optional gaussian filter
-    X_smoothed = scipy.ndimage.gaussian_filter(X_scaled, sigma=1)  # sigma can be modified
 
     n_components = 5  # modify to find better result
     ipca = sklearn.decomposition.IncrementalPCA(n_components=n_components)
 
-    for batch in np.array_split(X_smoothed, 10):
+    for batch in np.array_split(X_scaled, 10):
         ipca.partial_fit(batch)
 
-    pca_maps = ipca.transform(X_smoothed).T
+    pca_maps = ipca.transform(X_scaled).T
 
     term_weights_for_components_PCA = np.dot(ipca.components_, term_weights)
 
@@ -159,16 +154,6 @@ def main(path_prefix: str = '.'):
             _ = nilearn.plotting.plot_stat_map(pc_img, threshold=pc_threshold, colorbar=False, title=title)
             plt.show()
 
-    # 快速获取词汇表 (获取 1 张图的元数据即可)
-    tmp_data = nilearn.datasets.fetch_neurovault(max_images=1, fetch_neurosynth_words=True, data_dir=nilearn_data_path)
-    vocabulary = tmp_data['vocabulary']
-    # Reload from disk so ensembles later reuse the persisted arrays.
-    with np.load(os.path.join(base_path, f'X_and_term_weights_{img_count}.npz')) as npz_file:
-        X = npz_file['X']
-        term_weights = npz_file['term_weights']
-        print(f"Loaded X shape: {X.shape}, term_weights shape: {term_weights.shape}")
-        
-
     # Bootstrap PCA ensembles
     num_samples_to_select = 3500
     num_iterations = 200
@@ -179,27 +164,21 @@ def main(path_prefix: str = '.'):
 
     for i in tqdm.tqdm(range(num_iterations)):
         # Sample without replacement so each bootstrap covers diverse studies.
-        selected_indices = np.random.choice(len(X), num_samples_to_select, replace=False)
+        selected_indices = rng.choice(len(X), num_samples_to_select, replace=False)
         X_selected = X[selected_indices] # (nsamples, n_voxels)
         term_weights_selected = term_weights[selected_indices]
 
-        # # Standardize and smooth data -> PCA
-        # scaler = sklearn.preprocessing.StandardScaler()
-        # X_scaled = scaler.fit_transform(X_selected.T)
-        # X_scaled = X_scaled.astype(np.float32)
-        # X_smoothed = scipy.ndimage.gaussian_filter(X_scaled, sigma=1.5)
-        
         # fast standardization
         means = X_selected.mean(axis=1, keepdims=True)
         stds = X_selected.std(axis=1, keepdims=True)
         # 加上 1e-8 防止除以 0 的极小概率事件
-        X_smoothed = (X_selected - means) / (stds + 1e-8)
+        X_standardized = (X_selected - means) / (stds + 1e-8)
 
         ipca = sklearn.decomposition.IncrementalPCA(n_components=n_components)
-        for batch in np.array_split(X_smoothed, 10):
+        for batch in np.array_split(X_standardized, 10):
             # Chunked fitting keeps memory usage predictable even with many voxels.
             ipca.partial_fit(batch)
-        image_scores = ipca.transform(X_smoothed).T
+        image_scores = ipca.transform(X_standardized).T
         pca_maps = ipca.components_
 
         # Project term weights onto each bootstrap component for semantic labelling.
@@ -211,14 +190,8 @@ def main(path_prefix: str = '.'):
         all_term_weights[start_idx:end_idx, :] = term_weights_for_components_PCA
 
     # Cache ensemble outputs for downstream notebooks.
-    np.savez_compressed(os.path.join(base_path, f'all_pca_maps_and_term_weights_{len(X)}.npz'), all_pca_maps=all_pca_maps, all_term_weights=all_term_weights)
-    with np.load(os.path.join(base_path, 'all_pca_maps_and_term_weights_25000.npz')) as data:
-        # 注意：这里的键名 ('all_term_weights' 或 'term_weights') 
-        # 取决于你上次保存 np.savez_compressed 时用的变量名
-        # 请根据实际情况修改，如果你用的是上一版的代码，通常是 'all_term_weights'
-        all_term_weights = data['all_term_weights']
-        all_pca_maps = data['all_pca_maps']
-
+    np.savez_compressed(os.path.join(base_path, f'all_pca_maps_and_term_weights_{len(X)}.npz'),
+                        all_pca_maps=all_pca_maps, all_term_weights=all_term_weights, seed=seed)
     n_cluster = 200 # Cluster ensemble components
     # Cosine metric emphasises similarity in semantic profiles rather than absolute power.
     clustering = sklearn.cluster.AgglomerativeClustering(metric='cosine', n_clusters=n_cluster, linkage='average')
@@ -286,18 +259,18 @@ def main(path_prefix: str = '.'):
     _ = plt.xlabel('Index of Terms')
     _ = plt.ylabel('Distance')
     plt.show()
-    
-    
-    
+
+
+
     # 建立一个字典来收集数据
     metadata_records = []
-    
+
     for index, pc_terms in enumerate(average_term_weights):
         # 提取前 5 个最重要的词及其权重得分
         top_5_indices = np.argsort(pc_terms)[-5:][::-1]
         top_5_words = vocabulary[top_5_indices]
         top_5_scores = pc_terms[top_5_indices]
-        
+
         record = {
             'Cluster_ID': f"CLASS{index + 1}",
             'Top1_Term': top_5_words[0], 'Top1_Score': round(top_5_scores[0], 4),
@@ -305,7 +278,7 @@ def main(path_prefix: str = '.'):
             'Top3_Term': top_5_words[2], 'Top3_Score': round(top_5_scores[2], 4),
         }
         metadata_records.append(record)
-        
+
     # 保存为 CSV
     df_meta = pd.DataFrame(metadata_records)
     csv_path = os.path.join(base_path, 'Cluster_Semantic_Metadata.csv')
@@ -313,5 +286,11 @@ def main(path_prefix: str = '.'):
     print(f"📝 网络的语义身份档案已保存至: {csv_path}")
 
 if __name__ == '__main__':
-    os.environ['NO_PROXY'] = 'neurovault.org'
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description='Build legacy CLASS maps from cached NeuroVault maps.')
+    parser.add_argument('--path-prefix', default='.')
+    parser.add_argument('--seed', type=int, default=0)
+    parser.add_argument('--max-images', type=int, default=25000)
+    parser.add_argument('--download', action='store_true', help='Explicitly allow downloading additional maps')
+    args = parser.parse_args()
+    main(args.path_prefix, seed=args.seed, img_count=args.max_images, download=args.download)

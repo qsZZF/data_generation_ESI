@@ -18,9 +18,12 @@ import numpy as np
 from Simulation_G1.g1_simulation_core import _json_safe
 from Simulation_G1.noise_covariance import baseline_sample_count, COVARIANCE_KEYS, NOISE_ARRAY_KEYS
 from Simulation_G1.spatial import SpatialDynamicsConfig, resolve_spatial_config
+from Simulation_G1.amplitude import validate_amplitude_settings
+from Simulation_G1.real_noise import load_noise_window
 from Simulation_G2.g2_simulation_core import G2SourceSimulator, load_projection_matrix
-from Simulation_G2.nmm_bank import prepare_bank_segment, projection_hash
-from Simulation_G2.nmm_mixing import mix_sources, make_sensors, disjoint_baseline_start, project_baseline
+from Simulation_G2.nmm_bank import prepare_bank_segment, projection_hash, parent_group_ids
+from Simulation_G2.nmm_mixing import (mix_sources, make_sensors, disjoint_baseline_start,
+                                     project_baseline, apply_physical_source_amplitude, validate_sensor_snr_settings)
 from Simulation_G3.atlas_profiles import get_atlas_profile
 from Simulation_G3.g3_tvb_core import TVBSignalConfig, TVBSourceGenerator
 from Simulation_G3.nmm_sources import PRESETS, resolve_trajectory
@@ -54,15 +57,30 @@ class NMMSimulationConfig:
     random_seed: int = 42
     model_overrides: dict = field(default_factory=dict)
     source_snr_db: float | None = None
+    source_snr_metric: str = 'vertex_mean'
     background_bank_dir: str | None = None
     background_sample_id: str | None = None
     background_seed: int | None = None
     background_start_s: float = 0.0
     sensor_noise_type: str = 'iid_white'
     sensor_snr_db: float | None = 10.0
+    sensor_snr_mode: str = 'active_rms'
+    sensor_snr_clip_quantile: float = .95
     sensor_seed: int | None = None
+    real_noise_registry: str | None = None
+    real_noise_record_id: str | None = None
+    real_noise_split: str | None = None
+    allow_combined_real_source_background: bool = False
     average_reference: bool = True
     normalize_source: bool = True
+    covariance_estimator: str = 'empirical'
+    amplitude_mode: str = 'relative'
+    foreground_peak_am: float | None = None
+    leadfield_source_unit: str | None = None
+    sensor_units: str | list[str] | None = None
+    sensor_noise_std: float | list[float] | None = None
+    record_observability: bool = False
+    observability_settings: dict = field(default_factory=dict)
 
 
 def _seed(root, supplied, stream):
@@ -70,6 +88,33 @@ def _seed(root, supplied, stream):
 
 
 def _validate(config):
+    validate_sensor_snr_settings(config.sensor_snr_mode, config.sensor_snr_clip_quantile)
+    if not isinstance(config.allow_combined_real_source_background, bool):
+        raise ValueError('allow_combined_real_source_background must be Boolean')
+    if (config.real_noise_registry is None) != (config.real_noise_record_id is None):
+        raise ValueError('real_noise_registry and real_noise_record_id must be supplied together')
+    if config.real_noise_split is not None and (config.real_noise_registry is None or config.real_noise_split not in ('train', 'val', 'test')):
+        raise ValueError('real_noise_split requires a registered train/val/test record')
+    if config.real_noise_registry is not None and config.sensor_noise_type != 'real':
+        raise ValueError('Registered noise requires sensor_noise_type=real')
+    if config.real_noise_registry is not None and config.amplitude_mode == 'relative' and config.sensor_snr_db is None:
+        raise ValueError('Registered noise in relative mode requires a finite sensor_snr_db')
+    validate_amplitude_settings(amplitude_mode=config.amplitude_mode,
+        foreground_peak_am=config.foreground_peak_am, leadfield_source_unit=config.leadfield_source_unit,
+        sensor_units=config.sensor_units, sensor_noise_std=config.sensor_noise_std,
+        sensor_snr_db=config.sensor_snr_db, normalize_source=config.normalize_source)
+    if (config.real_noise_registry is not None and config.amplitude_mode == 'physical'
+            and (config.sensor_noise_std is None or not np.any(np.asarray(config.sensor_noise_std) > 0))):
+        raise ValueError('Registered physical noise requires at least one positive sensor_noise_std')
+    if not isinstance(config.record_observability, bool):
+        raise ValueError('record_observability must be Boolean')
+    if (not isinstance(config.observability_settings, dict)
+            or set(config.observability_settings) - {'numerical_rtol', 'near_null_rtol'}):
+        raise ValueError('Unknown observability settings')
+    if config.source_snr_metric not in ('vertex_mean', 'area_weighted'):
+        raise ValueError('source_snr_metric must be vertex_mean or area_weighted')
+    if config.covariance_estimator not in ('empirical', 'oas'):
+        raise ValueError('covariance_estimator must be empirical or oas')
     baseline_sample_count(config.baseline_duration_s, config.srate)
     config.spatial = resolve_spatial_config(config.spatial)
     if config.source_mode == 'network' and config.spatial.mode not in {'static', 'auto'}:
@@ -125,10 +170,11 @@ def _validate(config):
 
 
 class NMMSourceSimulator:
-    def __init__(self, backend=None, *, channel_names=None):
+    def __init__(self, backend=None, *, channel_names=None, noise_reader=None):
         self._backend = backend
         self._channel_names = channel_names
         self._loaded_atlas = None
+        self.noise_reader = noise_reader
 
     def _get_backend(self, profile, bank_dir):
         if self._backend is None or (self._loaded_atlas is not None and self._loaded_atlas != profile['atlas_id']):
@@ -181,11 +227,33 @@ class NMMSourceSimulator:
         backend = self._get_backend(profile, bank_dir)
         sensor_seed = _seed(config.random_seed, config.sensor_seed, 2)
         real_noise_provenance = None
+        if config.real_noise_registry is not None:
+            if real_sensor_noise is not None or any(value is not None for value in
+                    (real_noise_srate, real_noise_channel_names, real_noise_recording_id)):
+                raise ValueError('Registered noise cannot be combined with bare real-noise arguments')
+            if (self._channel_names is None or len(self._channel_names) != backend.n_sensors
+                    or len(set(self._channel_names)) != len(self._channel_names)):
+                raise ValueError('Registered noise requires forward-model channel names')
+            read_noise = self.noise_reader.read if self.noise_reader is not None else load_noise_window
+            real_sensor_noise, real_noise_provenance = read_noise(
+                config.real_noise_registry, config.real_noise_record_id,
+                expected_srate=config.srate, expected_channels=self._channel_names,
+                expected_units=config.sensor_units if config.amplitude_mode == 'physical' else None,
+                expected_reference='average' if config.average_reference else 'as_supplied',
+                baseline_samples=baseline_sample_count(config.baseline_duration_s, config.srate),
+                event_samples=round(config.duration_s * config.srate), seed=sensor_seed,
+                split=config.real_noise_split)
+            real_noise_provenance['identity_status'] = 'registered_verified'
+            if config.amplitude_mode == 'relative' and len(set(real_noise_provenance['sensor_units'])) != 1:
+                raise ValueError('Registered noise with mixed sensor units requires common-unit preprocessing or physical mode')
+            if (config.source_snr_db is not None and real_noise_provenance['noise_role'] != 'empty_room'
+                    and not config.allow_combined_real_source_background):
+                raise ValueError('Real neural background plus source background requires allow_combined_real_source_background=True')
         if config.sensor_snr_db is not None and config.sensor_noise_type == 'real' and real_sensor_noise is None:
             raise ValueError('sensor_noise_type=real requires real_sensor_noise')
         if real_sensor_noise is not None and config.sensor_noise_type != 'real':
             raise ValueError('Use sensor_noise_type=real for supplied measurement noise')
-        if real_sensor_noise is not None:
+        if real_sensor_noise is not None and config.real_noise_registry is None:
             if real_noise_srate != config.srate:
                 raise ValueError('Real sensor noise must be supplied at the requested sampling rate')
             if self._channel_names is None or real_noise_channel_names is None:
@@ -217,7 +285,8 @@ class NMMSourceSimulator:
                 event_start_sample=offset+baseline_count, event_stop_sample=offset+count,
                 selected_sha256=hashlib.sha256(real_sensor_noise.tobytes()).hexdigest(),
                 recording_id=real_noise_recording_id, parent_group_id='real_noise_' + group,
-                grouping_scope='recording_id' if real_noise_recording_id else 'exact_aligned_input_content')
+                grouping_scope='recording_id' if real_noise_recording_id else 'exact_aligned_input_content',
+                identity_status='unverified_bare_array_reference_units_and_subject_not_registered')
         source_config = self._simulation_config(config, profile)
         if config.source_mode == 'selected':
             if config.active_regions is not None:
@@ -302,19 +371,39 @@ class NMMSourceSimulator:
                 background_window_nonoverlapping=True, background_native_srate_hz=native_rate)
         arrays, source_meta = mix_sources(foreground, background, backend.projection_matrix,
             backend.vertex_area, config.source_snr_db, config.normalize_source,
-            foreground_vertex=foreground_vertex)
+            foreground_vertex=foreground_vertex, source_snr_metric=config.source_snr_metric)
+        if config.amplitude_mode == 'physical':
+            physical = validate_amplitude_settings(amplitude_mode='physical',
+                foreground_peak_am=config.foreground_peak_am, leadfield_source_unit=config.leadfield_source_unit,
+                sensor_units=config.sensor_units, sensor_noise_std=config.sensor_noise_std,
+                sensor_snr_db=config.sensor_snr_db, normalize_source=config.normalize_source,
+                n_channels=backend.n_sensors)
+            apply_physical_source_amplitude(arrays, source_meta, config.foreground_peak_am)
+            source_meta.update(physical,
+                regional_output_unit='A*m_model_coefficients', native_temporal_model_unit=entry['source_unit'])
         sensor_arrays, sensor_meta = make_sensors(backend, arrays, srate=config.srate,
             sensor_noise_type=config.sensor_noise_type, sensor_snr_db=config.sensor_snr_db,
+            sensor_snr_mode=config.sensor_snr_mode, sensor_snr_clip_quantile=config.sensor_snr_clip_quantile,
             sensor_seed=sensor_seed, average_reference=config.average_reference,
             real_sensor_noise=real_sensor_noise, baseline_duration_s=config.baseline_duration_s,
             baseline_source=None if baseline_region is None else project_baseline(
-                baseline_region, backend.projection_matrix, source_meta), baseline_metadata=baseline_metadata)
+                baseline_region, backend.projection_matrix, source_meta), baseline_metadata=baseline_metadata,
+            covariance_estimator=config.covariance_estimator, amplitude_mode=config.amplitude_mode,
+            sensor_noise_std=config.sensor_noise_std, sensor_units=config.sensor_units,
+            record_observability=config.record_observability, observability_settings=config.observability_settings)
         arrays.update(sensor_arrays)
         arrays['time_ms'] = np.arange(foreground.shape[1]) * 1000 / config.srate
         parents = [entry['simulation_group_id']]
+        data_parents=set(parent_group_ids(entry))
         if background_entry:
             parents.append(background_entry['simulation_group_id'])
+            data_parents.update(parent_group_ids(background_entry))
+        if real_noise_provenance:
+            data_parents.update(real_noise_provenance.get('parent_data_group_ids',[real_noise_provenance['parent_group_id']]))
         manifest = dict(generator_type='Unified_G2_G3_NMM', config=asdict(config),
+            sample_schema='esi-sample-v1', supervision_target='source_foreground',
+            source_total_definition='source_total = source_foreground + source_background; source is an alias of source_total',
+            source_temporal_representation='per_vertex_event_mean_removed',
             sample_id=config.sample_id, atlas_id=profile['atlas_id'],
             region_names=entry['manifest'].get('region_names'),
             configured_regions=configured, projected_regions=selected if config.source_mode == 'selected' else list(range(profile['n_regions'])),
@@ -323,18 +412,33 @@ class NMMSourceSimulator:
             requested_preset_validation_status=PRESETS[config.preset]['validation_status'],
             foreground_trajectory=entry, background_trajectory=background_entry,
             parent_simulation_group_ids=parents,
-            parent_data_group_ids=parents + ([real_noise_provenance['parent_group_id']] if real_noise_provenance else []),
+            parent_data_group_ids=sorted(data_parents),
             split_policy='Keep all samples sharing ANY foreground/background/real-noise parent in the same split',
             real_noise_provenance=real_noise_provenance,
             source_mode=config.source_mode, parameter_preset_is_activation_truth=False,
+            target_definition='source_foreground is the localization target; source_total/source also include source_background',
+            baseline_definition='separate nuisance-only sensor segment; no foreground target; same gains/reference/units as event',
             background_policy='independently_seeded_all_region_rest' if background_entry else 'none_added',
             channel_names=self._channel_names,
-            source_unit='normalized_model_state' if config.normalize_source else 'mV_PSP',
-            **spatial_meta, **source_meta, **sensor_meta)
+            source_unit='A*m' if config.amplitude_mode == 'physical' else 'normalized_model_state' if config.normalize_source else 'mV_PSP',
+            **{**spatial_meta, **source_meta, **sensor_meta})
         with np.errstate(over='raise', invalid='raise'):
             arrays = {key: value if key in {'time_ms', *COVARIANCE_KEYS}
                       else value.astype(np.float32) for key, value in arrays.items()}
-        return {**arrays, 'manifest': _json_safe(manifest)}
+        if config.amplitude_mode == 'physical' and not np.isclose(
+                np.max(abs(arrays['source_foreground'])), config.foreground_peak_am, rtol=5e-6, atol=0):
+            raise ValueError('Physical foreground cannot be represented at export precision')
+        arrays['source_total'] = arrays['source']
+        manifest['array_units'] = dict(source_foreground=manifest['source_unit'], source_background=manifest['source_unit'],
+            source_total=manifest['source_unit'], source=manifest['source_unit'],
+            sensor=config.sensor_units if config.amplitude_mode == 'physical' else 'projected_relative_model_units',
+            baseline_sensor=config.sensor_units if config.amplitude_mode == 'physical' else 'projected_relative_model_units')
+        from Simulation_G1.quality import require_sample_quality
+        sample={**arrays,'manifest':_json_safe(manifest)}
+        supports=[item['vertex_indices'] for item in spatial_meta.get('spatial_sources',[])] or None
+        require_sample_quality(sample,cortex_mask=np.asarray(backend.projection_matrix.getnnz(axis=1)>0),
+                               supports=supports,full_source=False)
+        return sample
 
     def generate_sensor(self, config, **kwargs):
         sample = self.generate_sample(config, **kwargs)
@@ -343,28 +447,84 @@ class NMMSourceSimulator:
                     for key in NOISE_ARRAY_KEYS}}
         return tuple(sample[key] for key in ('sensor', 'clean_sensor', 'sensor_noise', 'source')) + (metadata,)
 
-    def save_sample(self, output_dir, config, **kwargs):
+    def save_sample(self, output_dir, config, *, resume=False, **kwargs):
+        """Transactional save; resume regenerates/replays before verifying identity.
+
+        Online generation is not skipped. This avoids claiming a pre-generation
+        identity before the trajectory resolver creates or updates its bank.
+        """
+        from Simulation_G1.sample_io import save_sample_directory
         _validate(config)
         directory = Path(output_dir) / config.sample_id
-        if directory.exists():
+        if (directory.exists() or directory.is_symlink()) and not resume:
             raise FileExistsError(f'Sample directory already exists: {directory}')
         sample = self.generate_sample(config, **kwargs)
-        directory.mkdir(parents=True)
         manifest = sample.pop('manifest')
         filename = config.sample_id + '_data.npz'
-        np.savez_compressed(directory / filename, **sample)
-        manifest.update(arrays={key: list(value.shape) for key, value in sample.items()}, data_file=filename)
-        (directory / (config.sample_id + '_manifest.json')).write_text(
-            json.dumps(manifest, indent=2, allow_nan=False), encoding='utf-8')
-        return manifest
+
+        def file_hash(path):
+            path = Path(path)
+            if not path.is_file():
+                return None
+            with path.open('rb') as stream:
+                return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+        def array_hash(value):
+            array = np.ascontiguousarray(value)
+            digest = hashlib.sha256((array.dtype.str + str(array.shape)).encode())
+            digest.update(array.tobytes())
+            return digest.hexdigest()
+
+        profile = get_atlas_profile(config.atlas)
+        bank_dir = Path(config.bank_dir) if config.bank_dir else ROOT / 'generated_simulation_dataset/NMM_unified' / config.atlas
+        resource_paths = [Path(profile['projection_path']), Path(profile['connectivity_path'])]
+        # Bank indexes are appendable; bind only the selected immutable recordings.
+        for key, trajectory_bank in (
+                ('foreground_trajectory', bank_dir),
+                ('background_trajectory', Path(config.background_bank_dir) if config.background_bank_dir else bank_dir)):
+            entry = manifest.get(key)
+            if entry and entry.get('source_file'):
+                trajectory_path = (trajectory_bank / entry['source_file']).resolve()
+                if (not trajectory_path.is_relative_to(trajectory_bank.resolve())
+                        or file_hash(trajectory_path) != entry.get('source_sha256')):
+                    raise ValueError('Selected NMM trajectory checksum changed before transactional save')
+                resource_paths.append(trajectory_path)
+        if config.real_noise_registry:
+            resource_paths.append(Path(config.real_noise_registry))
+            noise_provenance = manifest['real_noise_provenance']
+            noise_path = Path(noise_provenance['input_path'])
+            if file_hash(noise_path) != noise_provenance['file_sha256']:
+                raise ValueError('Registered noise checksum changed before transactional save')
+            resource_paths.append(noise_path)
+        code_paths = [Path(__file__)] + [path for folder in ('Simulation_G1', 'Simulation_G2', 'Simulation_G3')
+                                        for path in sorted((ROOT / folder).glob('*.py'))]
+        request_identity = dict(config=_json_safe(asdict(config)),
+            code={str(path.relative_to(ROOT)): file_hash(path) for path in code_paths},
+            resources={str(path.resolve()): file_hash(path) for path in resource_paths},
+            leadfield_sha256=array_hash(self._backend.leadfield), projection_sha256=projection_hash(self._backend.projection_matrix),
+            vertex_areas_sha256=array_hash(self._backend.vertex_area),
+            vertices_sha256=array_hash(self._backend.vertices), faces_sha256=array_hash(self._backend.faces),
+            channel_names=_json_safe(self._channel_names),
+            arguments={key: {'array_sha256': array_hash(value)} if isinstance(value, np.ndarray)
+                       or (key == 'real_sensor_noise' and value is not None) else _json_safe(value)
+                       for key, value in kwargs.items()},
+            generated_manifest_sha256=hashlib.sha256(json.dumps(manifest, sort_keys=True, allow_nan=False).encode()).hexdigest(),
+            arrays_sha256={key: array_hash(value) for key, value in sample.items()},
+            verification_stage='after_generation_or_bank_replay')
+        manifest.update(array_shapes={key: list(value.shape) for key, value in sample.items()}, data_file=filename,
+                        resume_verification='post_generation; online simulation is not skipped')
+        return save_sample_directory(output_dir, config.sample_id, sample, manifest,
+                                     request_identity=request_identity, resume=resume)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, required=True, help='JSON NMMSimulationConfig or a list of configs')
     parser.add_argument('--output-dir', type=Path, required=True)
+    parser.add_argument('--resume', action='store_true',
+                        help='Verify existing samples after generation/bank replay; online simulation is not skipped')
     parser.add_argument('--baseline-duration-s', type=float,
-                        help='Override baseline duration for every JSON recipe (recipe default: 1 s)')
+                        help='Override baseline duration for every JSON recipe (recipe default: 2 s)')
     args = parser.parse_args(argv)
     configurations = json.loads(args.config.read_text(encoding='utf-8-sig'))
     if isinstance(configurations, dict):
@@ -375,11 +535,11 @@ def main(argv=None):
         _validate(config)
     if len({c.sample_id.casefold() for c in configs}) != len(configs):
         raise ValueError('Batch sample IDs must be unique')
-    if any((args.output_dir / c.sample_id).exists() for c in configs):
+    if not args.resume and any((args.output_dir / c.sample_id).exists() for c in configs):
         raise FileExistsError('A batch output sample already exists')
     simulator = NMMSourceSimulator()
     for config in configs:
-        result = simulator.save_sample(args.output_dir, config)
+        result = simulator.save_sample(args.output_dir, config, resume=args.resume)
         print(json.dumps({key: result.get(key) for key in
             ('sample_id', 'atlas_id', 'realized_source_snr_db', 'realized_sensor_snr_db')}), flush=True)
     return 0

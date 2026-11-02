@@ -6,6 +6,7 @@ makes squared coefficient norm equal to surface-area-weighted source energy.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import MutableMapping
 from dataclasses import asdict
 from pathlib import Path
 
@@ -23,6 +24,7 @@ DEFAULTS = dict(
     beta_hz=20., beta_width_hz=3., beta_power_ratio=0.,
     network_fraction=.3, scenario='rest', event_onset_s=.2, event_duration_s=.5,
     erp_latency_s=.1, erp_width_s=.05, erp_amplitude=3., erp_latency_jitter_s=0.,
+    erp_spatial_mode='random',
     ersp_depth=.5, ersp_beta_depth=0., ersp_onset_jitter_s=0.)
 ASSET_KEYS = {'basis_path', 'basis_sha256', 'network_path', 'network_sha256',
               'network_indices', 'n_modes'}
@@ -37,7 +39,9 @@ def _settings(settings):
     resolved = {**DEFAULTS, **settings}
     if resolved['scenario'] not in ('rest', 'erp', 'ersp'):
         raise ValueError('spectral scenario must be rest, erp or ersp')
-    for key in set(DEFAULTS) - {'scenario'}:
+    if resolved['erp_spatial_mode'] not in ('random', 'fixed'):
+        raise ValueError('erp_spatial_mode must be random or fixed')
+    for key in set(DEFAULTS) - {'scenario', 'erp_spatial_mode'}:
         value = resolved[key]
         if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.number)) or not np.isfinite(value):
             raise ValueError(f'{key} must be a finite number')
@@ -72,14 +76,20 @@ def _fft_process(rng, n_components, n_samples, spectrum):
 
 
 def generate_coefficients(bundle, settings, *, srate, time_window, baseline_duration_s,
-                          rng, network_coefficients=None):
+                          rng, network_coefficients=None, spatial_rng=None,
+                          _rest_as_background=False):
     """Return foreground/background K x T and independent baseline-background K x B.
 
     Baseline and event occupy disjoint portions of a jointly generated stationary
     process. ERP adds a phase-locked response. ERSP target is the modulation delta
     relative to the unmodulated resting process, retaining random alpha/beta phases.
+    Pass spatial_rng to vary ERP topography independently of temporal draws. Without
+    it, a spatial seed is drawn after the existing ERP temporal draws. The private
+    resting-background switch keeps both disjoint segments as nuisance activity.
     """
     resolved = _settings(settings)
+    if _rest_as_background and resolved['scenario'] != 'rest':
+        raise ValueError('Rest background generation requires scenario=rest')
     baseline_n = baseline_sample_count(baseline_duration_s, srate)
     window = np.asarray(time_window, dtype=float)
     if window.shape != (2,) or not np.isfinite(window).all() or window[1] <= window[0]:
@@ -154,19 +164,34 @@ def generate_coefficients(bundle, settings, *, srate, time_window, baseline_dura
     scenario = resolved['scenario']
     realized = {}
     if scenario == 'rest':
-        foreground = background
-        background = np.zeros_like(foreground)
-        baseline.fill(0)
-        target = 'whole_resting_field'
+        if _rest_as_background:
+            foreground = np.zeros_like(background)
+            target = 'stationary_rest_background_without_foreground'
+        else:
+            foreground = background
+            background = np.zeros_like(foreground)
+            baseline.fill(0)
+            target = 'whole_resting_field'
     elif scenario == 'erp':
         if not window[0] <= resolved['event_onset_s'] < window[1]:
             raise ValueError('ERP onset must lie inside time_window')
         latency = resolved['event_onset_s'] + resolved['erp_latency_s'] + rng.normal(0, resolved['erp_latency_jitter_s'])
         if not resolved['event_onset_s'] <= latency < window[1]:
             raise ValueError('Realized ERP latency lies outside time_window; reduce jitter or adjust timing')
-        pattern = np.sqrt(1 - fraction) * weights
-        if fraction:
-            pattern = pattern + np.sqrt(fraction) * networks.sum(axis=1)
+        mode = resolved['erp_spatial_mode']
+        realized['erp_spatial_mode'] = mode
+        if mode == 'random':
+            if spatial_rng is None:
+                spatial_seed = int(rng.integers(0, 2**63))
+                spatial_rng = np.random.default_rng(spatial_seed)
+                realized['erp_spatial_seed'] = spatial_seed
+            pattern = np.sqrt(1 - fraction) * weights * spatial_rng.standard_normal(n_modes)
+            if fraction:
+                pattern += np.sqrt(fraction) * (networks @ spatial_rng.standard_normal(networks.shape[1]))
+        else:
+            pattern = np.sqrt(1 - fraction) * weights
+            if fraction:
+                pattern = pattern + np.sqrt(fraction) * networks.sum(axis=1)
         pattern_norm = np.linalg.norm(pattern)
         if pattern_norm <= np.finfo(float).eps:
             raise ValueError('Evoked spatial pattern cancels to zero; adjust the network selection')
@@ -176,7 +201,7 @@ def generate_coefficients(bundle, settings, *, srate, time_window, baseline_dura
         response *= np.sin(.5*np.pi*ramp)**2
         foreground = pattern[:, None] / pattern_norm * response[None, :]
         realized['erp_latency_s'] = float(latency)
-        realized['erp_support'] = 'causal; smooth onset ramp of min(50ms,width)'
+        realized['coefficient_erp_support'] = 'causal before exported field centering; smooth onset ramp of min(50ms,width)'
         target = 'evoked_response_over_stationary_rest_background'
     else:
         onset = resolved['event_onset_s'] + rng.normal(0, resolved['ersp_onset_jitter_s'])
@@ -194,7 +219,8 @@ def generate_coefficients(bundle, settings, *, srate, time_window, baseline_dura
             target = 'alpha_beta_amplitude_modulation_delta_over_unmodulated_rest_background'
     metadata = dict(spectral_parameters=resolved, n_modes=int(n_modes),
                     mesh_sha256=str(bundle.get('mesh_sha256', 'unspecified')),
-                    source_units='model_current_arbitrary', target_definition=target,
+                    source_units='model_current_arbitrary', amplitude_unit='model_current_arbitrary',
+                    source_representation='per_vertex_activity', target_definition=target,
                     coefficient_energy='squared coefficient norm equals surface mass-weighted field energy',
                     temporal_model=('independent Gaussian FFT aperiodic and Gaussian alpha/beta PSD'
                                     if beta is not None else 'independent Gaussian FFT aperiodic and Gaussian alpha PSD'),
@@ -202,7 +228,7 @@ def generate_coefficients(bundle, settings, *, srate, time_window, baseline_dura
                     beta_width_definition='Gaussian PSD standard deviation in Hz',
                     network_indices=selected, network_normalization='unit retained modal energy per map',
                     baseline_interval_samples=[0, baseline_n], event_interval_samples=[baseline_n, n_total],
-                    baseline_contains_source_background=scenario != 'rest', **realized)
+                    baseline_contains_source_background=scenario != 'rest' or _rest_as_background, **realized)
     return dict(foreground=foreground, background=background, baseline_background=baseline, metadata=metadata)
 
 
@@ -286,9 +312,102 @@ def _load_assets(simulator, resolved, source_model):
     return cached
 
 
-def generate_source_components(simulator, config):
+def validate_multiscale_settings(settings):
+    """Validate optional residual settings without drawing random numbers."""
+    if settings is None:
+        settings = {}
+    if not isinstance(settings, dict) or set(settings) - {'fraction', 'metric', 'n_components', 'length_mm', 'seed'}:
+        raise ValueError('Unknown multiscale settings; expected fraction, metric, n_components, length_mm, seed')
+    resolved = dict(fraction=0., metric='vertex_mean', n_components=8, length_mm=10.)
+    resolved.update(settings)
+    fraction = resolved['fraction']
+    if (isinstance(fraction, (bool, np.bool_)) or not isinstance(fraction, (int, float, np.number))
+            or np.iscomplexobj(fraction) or not np.isfinite(fraction) or not 0 <= fraction < 1):
+        raise ValueError('multiscale fraction must satisfy 0 <= fraction < 1')
+    if resolved['metric'] not in ('vertex_mean', 'area_weighted'):
+        raise ValueError('multiscale metric must be vertex_mean or area_weighted')
+    count = resolved['n_components']
+    if isinstance(count, (bool, np.bool_)) or not isinstance(count, (int, np.integer)) or count < 1:
+        raise ValueError('multiscale n_components must be a positive integer')
+    length = resolved['length_mm']
+    if (isinstance(length, (bool, np.bool_)) or not isinstance(length, (int, float, np.number))
+            or np.iscomplexobj(length) or not np.isfinite(length) or length <= 0):
+        raise ValueError('multiscale length_mm must be finite and positive')
+    if 'seed' in resolved and (isinstance(resolved['seed'], (bool, np.bool_))
+            or not isinstance(resolved['seed'], (int, np.integer)) or resolved['seed'] < 0):
+        raise ValueError('multiscale seed must be a nonnegative integer')
+    return resolved
+
+
+def _add_multiscale_fields(simulator, bundle, coarse_fields, generated, resolved, settings,
+                          *, srate, time_window, baseline_duration_s, seed, target):
+    """Mask then augment fields; share one event-calibrated residual gain."""
+    try:
+        from .multiscale import generate_residual_patterns, mix_residual
+    except ImportError:
+        from multiscale import generate_residual_patterns, mix_residual
+    residual_seed = settings.get('seed')
+    if residual_seed is None:
+        residual_seed = int(np.random.SeedSequence(seed, spawn_key=(2,)).generate_state(1, dtype=np.uint64)[0])
+    substreams = np.random.SeedSequence(residual_seed).spawn(3)
+    pattern_seed = int(substreams[0].generate_state(1, dtype=np.uint64)[0])
+    if not hasattr(simulator, '_multiscale_operator_cache'):
+        simulator._multiscale_operator_cache = {}
+    patterns, spatial_metadata = generate_residual_patterns(simulator, bundle, seed=pattern_seed,
+        n_components=settings['n_components'], length_mm=settings['length_mm'],
+        n_modes=generated['metadata']['n_modes'], cache=simulator._multiscale_operator_cache)
+    temporal_settings = {key: resolved[key] for key in DEFAULTS}
+    temporal_settings.update(network_fraction=0., erp_latency_jitter_s=0., ersp_onset_jitter_s=0.)
+    if resolved['scenario'] == 'erp':
+        temporal_settings['erp_latency_s'] = generated['metadata']['erp_latency_s']-resolved['event_onset_s']
+    elif resolved['scenario'] == 'ersp':
+        temporal_settings['event_onset_s'] = generated['metadata']['ersp_onset_s']
+    fine = generate_coefficients({'eigenvalues': np.ones(settings['n_components'])}, temporal_settings,
+        srate=srate, time_window=time_window, baseline_duration_s=baseline_duration_s,
+        rng=np.random.default_rng(substreams[1]), spatial_rng=np.random.default_rng(substreams[2]),
+        _rest_as_background=target == 'background')
+    fine['metadata']['coefficient_energy'] = ('residual patterns have individual unit mass norm but are not mutually '
+                                               'orthogonal; coefficient norm is not exported field energy')
+    fine['metadata']['spatial_weighting'] = 'equal coefficient weights; spatial smoothing is in the residual patterns'
+    coarse, residual = {}, {}
+    for name, values in coarse_fields.items():
+        coarse[name] = np.array(values, dtype=float, copy=True)
+        coarse[name][~simulator.cortex_mask] = 0
+        residual[name] = patterns @ fine[name]
+        residual[name] -= residual[name].mean(axis=1, keepdims=True)
+    mixed_target, scaled_target, mixing = mix_residual(coarse[target], residual[target], settings['fraction'],
+        metric=settings['metric'], mass=bundle['mass'])
+    gain = mixing['residual_scale']
+    scaled = {name: values*gain for name, values in residual.items()}
+    scaled[target] = scaled_target
+    mixed = {name: coarse[name]+scaled[name] for name in coarse}
+    mixed[target] = mixed_target
+    info = dict(settings={**settings, 'seed': residual_seed}, spatial=spatial_metadata,
+                temporal=fine['metadata'], mixing=mixing, gain_calibration_target=target,
+                residual_gain_scope='one event-calibrated gain for foreground, background and baseline',
+                mask_scope='coarse and residual masked before calibration; residual projected after masking',
+                truth_component_scope='after source normalization; residual absorbs exported float32 roundoff')
+    return mixed, coarse, info
+
+
+def _component_output(components, actual, coarse, scale, enabled):
+    if components is None:
+        return
+    for name, total in actual.items():
+        if total is None:
+            continue
+        values = np.asarray(total, dtype=float)
+        coarse_values = coarse[name]/scale if enabled else values.copy()
+        components[name+'_coarse'] = coarse_values
+        components[name+'_residual'] = values-coarse_values if enabled else np.zeros_like(values)
+
+
+def generate_source_components(simulator, config, *, components=None):
     """Validate assets against the actual forward-model mesh and project modal draws."""
     resolved = _settings(config.spectral)
+    multiscale = validate_multiscale_settings(getattr(config, 'multiscale', None))
+    if components is not None and not isinstance(components, MutableMapping):
+        raise ValueError('components must be a mutable mapping or None')
     if config.source_snr_db is not None or config.source_background_type is not None:
         raise ValueError('Spectral sources use erp_amplitude/ersp_depth, not legacy source SNR/background settings')
     assets = _load_assets(simulator, resolved, config.source_model)
@@ -299,17 +418,36 @@ def generate_source_components(simulator, config):
             raise ValueError('Nonzero network_fraction requires source_model=lbo_network')
         resolved['network_fraction'] = 0.
     seed = config.component_seeds['waveform'] if config.component_seeds is not None else config.random_seed
+    spatial_seed = (config.component_seeds['spatial'] if config.component_seeds is not None
+                    else int(np.random.SeedSequence(config.random_seed, spawn_key=(0,)).generate_state(1, dtype=np.uint64)[0]))
     generated = generate_coefficients(bundle, resolved, srate=config.srate,
         time_window=config.time_window, baseline_duration_s=config.baseline_duration_s,
-        rng=np.random.default_rng(seed), network_coefficients=network_coefficients)
+        rng=np.random.default_rng(seed), network_coefficients=network_coefficients,
+        spatial_rng=np.random.default_rng(spatial_seed))
     basis = np.asarray(bundle['basis'])[:, :generated['metadata']['n_modes']]
     foreground = basis @ generated['foreground']
+    foreground[~simulator.cortex_mask] = 0
     foreground -= foreground.mean(axis=1, keepdims=True)
     has_background = resolved['scenario'] != 'rest'
     if has_background:
         background = basis @ generated['background']
         baseline = basis @ generated['baseline_background']
+        background[~simulator.cortex_mask] = 0
+        baseline[~simulator.cortex_mask] = 0
         background -= background.mean(axis=1, keepdims=True)
+    coarse_fields = dict(foreground=foreground)
+    if has_background:
+        coarse_fields.update(background=background, baseline_background=baseline)
+    multiscale_info = None
+    if multiscale['fraction']:
+        fields, coarse_fields, multiscale_info = _add_multiscale_fields(simulator, bundle,
+            coarse_fields, generated, resolved, multiscale, srate=config.srate,
+            time_window=config.time_window, baseline_duration_s=config.baseline_duration_s,
+            seed=seed, target='foreground')
+        foreground = fields['foreground']
+        if has_background:
+            background, baseline = fields['background'], fields['baseline_background']
+    if has_background:
         source = (foreground + background).astype(np.float32)
     else:
         source = foreground.astype(np.float32)
@@ -322,10 +460,71 @@ def generate_source_components(simulator, config):
         baseline = (baseline / scale).astype(np.float32)
     else:
         background = baseline = None
+    actual_foreground = foreground if has_background else source
+    _component_output(components, dict(foreground=actual_foreground, background=background,
+                       baseline_background=baseline), coarse_fields, scale, bool(multiscale['fraction']))
     metadata = {**asdict(config), **generated['metadata'], 'generator_type': 'G1_spectral',
                 'n_vertices': simulator.n_sources, 'n_sensors': simulator.n_sensors,
                 'active_vertices': np.flatnonzero(np.any(foreground != 0, axis=1)).tolist(),
                 'active_vertices_definition': 'nonzero foreground target, not nuisance background'}
     metadata.update(basis_sha256=assets['basis_sha256'], network_sha256=assets['network_sha256'],
-                    spectral_seed=seed, source_normalization_scale=scale)
+                    spectral_seed=seed, source_normalization_scale=scale,
+                    cortex_mask_applied=True,
+                    cortex_mask_sha256=hashlib.sha256(simulator.cortex_mask.astype(np.uint8).tobytes()).hexdigest(),
+                    coefficient_energy='coarse modal identity before cortical masking; exported field energy uses masked vertex arrays',
+                    exported_foreground_centering='whole-event per-vertex temporal mean removed; a causal ERP acquires a constant offset before onset')
+    if resolved['scenario'] == 'erp':
+        metadata['erp_spatial_seed'] = spatial_seed if resolved['erp_spatial_mode'] == 'random' else None
+    if multiscale_info is not None:
+        metadata['multiscale_metadata'] = multiscale_info
+        metadata['coefficient_energy'] = 'coarse modal identity before cortical masking; multiscale component powers reported on vertex fields'
     return source, metadata, background, baseline
+
+
+def generate_rest_background(simulator, settings, *, srate, time_window,
+                             baseline_duration_s, seed, source_model='lbo', multiscale=None, components=None):
+    """Return vertex event/background, baseline and metadata with one shared scale.
+
+    Assets are validated against the simulator mesh. Neither segment is rescaled:
+    the caller must apply the same source-SNR gain to event and baseline arrays.
+    """
+    if source_model not in ('lbo', 'lbo_network'):
+        raise ValueError('Rest background source_model must be lbo or lbo_network')
+    multiscale = validate_multiscale_settings(multiscale)
+    if components is not None and not isinstance(components, MutableMapping):
+        raise ValueError('components must be a mutable mapping or None')
+    resolved = _settings(settings)
+    if source_model == 'lbo':
+        if settings.get('network_fraction', 0) != 0:
+            raise ValueError('Nonzero network_fraction requires source_model=lbo_network')
+        resolved['network_fraction'] = 0.
+    assets = _load_assets(simulator, resolved, source_model)
+    generated = generate_coefficients(assets['bundle'], resolved, srate=srate,
+        time_window=time_window, baseline_duration_s=baseline_duration_s,
+        rng=np.random.default_rng(seed), network_coefficients=assets['network_coefficients'],
+        _rest_as_background=True)
+    basis = np.asarray(assets['bundle']['basis'])[:, :generated['metadata']['n_modes']]
+    event = basis @ generated['background']
+    baseline = basis @ generated['baseline_background']
+    event[~simulator.cortex_mask] = 0
+    baseline[~simulator.cortex_mask] = 0
+    coarse_fields = dict(background=event, baseline_background=baseline)
+    multiscale_info = None
+    if multiscale['fraction']:
+        fields, coarse_fields, multiscale_info = _add_multiscale_fields(simulator, assets['bundle'],
+            coarse_fields, generated, resolved, multiscale, srate=srate,
+            time_window=time_window, baseline_duration_s=baseline_duration_s,
+            seed=seed, target='background')
+        event, baseline = fields['background'], fields['baseline_background']
+    _component_output(components, dict(background=event, baseline_background=baseline),
+                      coarse_fields, 1., bool(multiscale['fraction']))
+    metadata = {**generated['metadata'], 'spectral_seed': seed,
+                'basis_sha256': assets['basis_sha256'], 'network_sha256': assets['network_sha256'],
+                'source_model': source_model, 'source_normalization_scale': 1.,
+                'cortex_mask_applied': True,
+                'cortex_mask_sha256': hashlib.sha256(simulator.cortex_mask.astype(np.uint8).tobytes()).hexdigest(),
+                'coefficient_energy': 'coarse modal identity before cortical masking; exported field energy uses masked vertex arrays'}
+    if multiscale_info is not None:
+        metadata['multiscale_metadata'] = multiscale_info
+        metadata['coefficient_energy'] = 'coarse modal identity before cortical masking; multiscale component powers reported on vertex fields'
+    return event, baseline, metadata

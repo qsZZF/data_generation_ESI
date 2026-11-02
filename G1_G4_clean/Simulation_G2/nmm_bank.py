@@ -38,6 +38,20 @@ def _valid_id(value):
             and not re.fullmatch(r"(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])", value))
 
 
+def _source_unit(manifest):
+    """Explicit producer units override class inference, never normalization state."""
+    inferred = ('normalized_model_state' if manifest.get('normalize', False) else
+                'mV_PSP' if manifest.get('model', {}).get('class') == 'JansenRit' else 'model_state')
+    unit = manifest.get('source_unit', inferred)
+    if unit not in ('mV_PSP', 'model_state', 'normalized_model_state'):
+        raise ValueError('Unsupported explicit NMM source_unit')
+    if 'source_unit' in manifest and type(manifest.get('normalize', False)) is not bool:
+        raise ValueError('Explicit source_unit requires Boolean normalize')
+    if 'source_unit' in manifest and (unit == 'normalized_model_state') != bool(manifest.get('normalize', False)):
+        raise ValueError('Explicit source_unit contradicts normalize')
+    return unit
+
+
 def read_bank(path):
     bank = json.loads((Path(path) / "bank.json").read_text(encoding="utf-8"))
     if (type(bank.get("schema_version")) is not int or bank["schema_version"] not in (1, 2)
@@ -138,8 +152,7 @@ def save_bank_sample(path, sample_id, region_source, time_ms, manifest, provenan
             or any(not isinstance(i, (int, np.integer)) or isinstance(i, bool)
                    or i < 0 or i >= source.shape[0] for i in active)):
         raise ValueError("Invalid signal type or configured region indices")
-    unit = ("normalized_model_state" if manifest.get("normalize", False) else
-            "mV_PSP" if manifest.get("model", {}).get("class") == "JansenRit" else "model_state")
+    unit = _source_unit(manifest)
     record = dict(sample_id=sample_id, signal_type=signal_type, active_regions=[int(i) for i in active],
                   native_srate_hz=rate, n_samples=source.shape[1], source_unit=unit,
                   atlas_id=bank["atlas_id"], projection_sha256=bank["projection_sha256"],
@@ -229,6 +242,8 @@ def load_bank_payload(path, sample_id, *, bank=None):
             or record.get("source_unit") not in {"normalized_model_state", "mV_PSP", "model_state"}
             or not re.fullmatch(r"[a-f0-9]{64}", str(record.get("simulation_group_id", "")))):
         raise ValueError("NMM recording identity differs from bank")
+    if record['source_unit'] != _source_unit(record['manifest']):
+        raise ValueError('NMM recording source_unit contradicts its producer manifest')
     n_samples, rate = record["n_samples"], record["native_srate_hz"]
     if (type(n_samples) is not int or n_samples < 2 or times.shape != (n_samples,)
             or not isinstance(rate, (int, float)) or isinstance(rate, bool)

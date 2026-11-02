@@ -88,8 +88,9 @@ class G1NoiseCovarianceTests(unittest.TestCase):
         _, _, _, _, expected = self.sim.generate_sensor(self.config)
         with tempfile.TemporaryDirectory() as tmp:
             manifest = self.sim.save_sample(tmp, self.config, save_sensor_noise=False)
-            stored = json.loads((Path(tmp) / manifest['manifest']).read_text(encoding='utf-8'))
-            with np.load(Path(tmp) / stored['noise_covariance_file'], allow_pickle=False) as arrays:
+            sample_dir=Path(tmp)/self.config.sample_id
+            stored = json.loads((sample_dir / manifest['manifest']).read_text(encoding='utf-8'))
+            with np.load(sample_dir / stored['noise_covariance_file'], allow_pickle=False) as arrays:
                 for key in ('baseline_sensor', 'noise_covariance', 'oracle_noise_covariance', 'sensor_noise_covariance'):
                     self.assertEqual(arrays[key].dtype, np.float32 if key == 'baseline_sensor' else np.float64)
                     np.testing.assert_array_equal(arrays[key], expected[key])

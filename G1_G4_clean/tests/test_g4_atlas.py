@@ -46,7 +46,7 @@ class AtlasTests(unittest.TestCase):
         self.assertTrue(np.all(atlas["labels_vertex"][~atlas["cortex_mask"]] == 0))
         self.assertTrue(all(not name.startswith(EXCLUDED_PREFIXES) for name in atlas["region_names"]))
         np.testing.assert_allclose(atlas["projection"].sum(axis=0), 1, atol=1e-12)
-        with (ROOT / "Simulation_G4/reference/aal_regions.csv").open() as handle:
+        with (ROOT / "Simulation_G4/aal_regions.csv").open() as handle:
             reference = list(csv.DictReader(handle))
         for number, name, label in zip(atlas["aal_roi_numbers"], atlas["region_names"], atlas["region_ids"]):
             self.assertEqual(reference[number - 1]["atlas_name"], name)
@@ -57,6 +57,20 @@ class AtlasTests(unittest.TestCase):
                                    leadfield @ (atlas["projection"] @ source), atol=1e-11)
         self.assertLess(atlas["manifest"]["mesh_alignment"]["max_vertex_error_mm"], 1e-10)
         self.assertFalse(atlas["manifest"]["native_surface_atlas"])
+
+    @unittest.skipUnless((ROOT / 'Anatomy/G4_AAL_cortical_membership/atlas.npz').exists(),
+                         'Local membership view not built')
+    def test_actual_membership_view_keeps_geometry_and_recomputes_forward(self):
+        original = load_atlas()
+        view = load_atlas(ROOT / 'Anatomy/G4_AAL_cortical_membership')
+        self.assertEqual(view['manifest']['projection_mode'], 'membership')
+        for field in ('labels_vertex', 'region_names', 'vertices', 'faces', 'vertex_to_region'):
+            np.testing.assert_array_equal(view[field], original[field])
+        np.testing.assert_array_equal(view['projection'].data, 1)
+        np.testing.assert_array_equal(np.asarray(view['projection'].sum(axis=1)).ravel(),
+                                      view['vertex_to_region'] >= 0)
+        gain = load_brainstorm_leadfield(ROOT / 'Anatomy/Gain_20k_FS.mat', n_vertices=20484)
+        np.testing.assert_allclose(view['leadfield'], gain @ view['projection'], atol=1e-11)
 
 
 if __name__ == "__main__":

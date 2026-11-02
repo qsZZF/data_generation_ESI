@@ -90,14 +90,16 @@ def sensor_noise_with_baseline(backend, clean, *, srate, sensor_noise_type, snr_
 
 
 def baseline_covariance_payload(baseline_sensor, sensor_noise, *, background_sensor=None,
-                                average_reference=False, baseline_metadata=None):
+                                average_reference=False, baseline_metadata=None,
+                                estimator='empirical', projector=None):
     """Default whitening uses observed baseline; event components are diagnostics."""
     baseline = np.asarray(baseline_sensor, dtype=np.float32)
-    covariance, info = noise_covariance(baseline, average_reference=average_reference)
+    covariance, info = noise_covariance(baseline, average_reference=average_reference,
+                                       estimator=estimator, projector=projector)
     if baseline.shape[0] != np.asarray(sensor_noise).shape[0]:
         raise ValueError('Baseline and event channel counts differ')
     diagnostics, details = covariance_payload(sensor_noise, background_sensor=background_sensor,
-                                             average_reference=average_reference)
+                                             average_reference=average_reference, projector=projector)
     info.update(provenance='generated_baseline', estimation_window='baseline_only',
                 target_present=False)
     arrays = dict(baseline_sensor=baseline, noise_covariance=covariance,
@@ -110,21 +112,124 @@ def baseline_covariance_payload(baseline_sensor, sensor_noise, *, background_sen
     return arrays, metadata
 
 
-def noise_covariance(noise, *, average_reference=False):
-    """Centered empirical covariance (T-1 denominator) of channels x time noise."""
+def _constraint_basis(n_channels, average_reference, projector):
+    """Known physical subspace, independent of the observed finite-sample rank."""
+    identity = np.eye(n_channels)
+    if projector is None:
+        allowed = identity
+    else:
+        allowed = np.asarray(projector, dtype=np.float64)
+        if (allowed.shape != identity.shape or not np.isfinite(allowed).all()
+                or not np.allclose(allowed, allowed.T, rtol=0, atol=1e-10)
+                or not np.allclose(allowed @ allowed, allowed, rtol=0, atol=1e-10)):
+            raise ValueError('projector must be a finite symmetric idempotent channels-by-channels matrix')
+    if average_reference:
+        car = identity - np.ones_like(identity) / n_channels
+        # Eigenvalue 2 selects the intersection even for noncommuting constraints.
+        eigenvalues, vectors = np.linalg.eigh(allowed + car)
+        return vectors[:, eigenvalues > 2 - 1e-10]
+    if projector is None:
+        return identity
+    eigenvalues, vectors = np.linalg.eigh(allowed)
+    return vectors[:, eigenvalues > .5]
+
+
+def _standardized_spectrum(covariance, rtol):
+    """Validate covariance and diagonalize in dimensionless channel units."""
+    matrix = np.asarray(covariance, dtype=np.float64)
+    if (matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[0] != matrix.shape[1]
+            or not np.isfinite(matrix).all()):
+        raise ValueError('Covariance must be a finite nonempty square matrix')
+    if not np.isfinite(rtol) or not 0 < rtol < 1:
+        raise ValueError('rtol must lie strictly between zero and one')
+    diagonal = np.diag(matrix)
+    if np.any(diagonal < 0):
+        raise ValueError('Covariance must have nonnegative diagonal variance')
+    positive = diagonal > 0
+    if np.any(matrix[~positive, :] != 0) or np.any(matrix[:, ~positive] != 0):
+        raise ValueError('Zero-variance channels must have zero covariance rows and columns')
+    scaling = np.sqrt(diagonal[positive])
+    standardized = matrix[np.ix_(positive, positive)] / scaling[:, None] / scaling[None, :]
+    if not np.isfinite(standardized).all():
+        raise ValueError('Covariance cannot be standardized to finite values')
+    if not np.allclose(standardized, standardized.T, rtol=0, atol=rtol):
+        raise ValueError('Covariance must be symmetric after unit standardization')
+    eigenvalues, vectors = np.linalg.eigh((standardized + standardized.T) / 2)
+    cutoff = max(float(eigenvalues[-1]), 0.) * rtol if eigenvalues.size else 0.
+    if eigenvalues.size and eigenvalues[0] < -10 * cutoff:
+        raise ValueError('Covariance must be positive semidefinite after unit standardization')
+    return eigenvalues, vectors, scaling, positive, eigenvalues > cutoff
+
+
+def _oas_covariance(centered, basis):
+    """OAS in the standardized known subspace, restoring original sensor units.
+
+    Uses the standard simplified OAS coefficient (as in scikit-learn), with
+    T-1 covariance normalization retained for consistency with empirical mode.
+    """
+    scaling = np.sqrt(np.sum(centered ** 2, axis=1) / (centered.shape[1] - 1))
+    positive = scaling > 0
+    # A truly silent channel has no estimated scale and cannot be extrapolated.
+    if not np.all(positive):
+        _, singular, right = np.linalg.svd(basis[~positive], full_matrices=True)
+        rank = int(np.count_nonzero(singular > 1e-10))
+        basis = basis @ right[rank:].T
+    if basis.shape[1] == 0:
+        return np.zeros((len(centered), len(centered))), 0., 0
+    standardized_basis, _ = np.linalg.qr(basis[positive] / scaling[positive, None], mode='reduced')
+    reduced = standardized_basis.T @ (centered[positive] / scaling[positive, None])
+    empirical = reduced @ reduced.T / (centered.shape[1] - 1)
+    dimension = len(empirical)
+    mu = float(np.trace(empirical) / dimension)
+    alpha = float(np.mean(empirical ** 2))
+    denominator = (centered.shape[1] + 1.) * (alpha - mu ** 2 / dimension)
+    shrinkage = 1. if denominator <= 0 else min((alpha + mu ** 2) / denominator, 1.)
+    shrunk = (1 - shrinkage) * empirical + shrinkage * mu * np.eye(dimension)
+    transform = np.zeros((len(centered), dimension))
+    transform[positive] = scaling[positive, None] * standardized_basis
+    return transform @ shrunk @ transform.T, float(shrinkage), dimension
+
+
+def noise_covariance(noise, *, average_reference=False, estimator='empirical', projector=None):
+    """Estimate channels x channels noise covariance using T-1 normalization.
+
+    ``oas`` regularizes only the known CAR/projector subspace after scaling
+    channels to comparable units. It can restore finite-sample rank, never a
+    known removed reference direction. Apply that same projection to data and G.
+    Empirical mode without an explicit projector preserves the supplied samples
+    exactly; ``average_reference`` then records their existing reference only.
+    """
     values = np.asarray(noise, dtype=np.float64)
     if values.ndim != 2 or values.shape[0] < 1 or values.shape[1] < 2 or not np.isfinite(values).all():
         raise ValueError('Noise must be a finite channels-by-time matrix with at least two samples')
+    if estimator not in ('empirical', 'oas'):
+        raise ValueError("estimator must be 'empirical' or 'oas'")
+    basis = _constraint_basis(len(values), average_reference, projector)
     centered = values - values.mean(axis=1, keepdims=True)
+    projection_applied = projector is not None or (estimator == 'oas' and average_reference)
+    if projection_applied:
+        centered = basis @ (basis.T @ centered)
     covariance = centered @ centered.T / (values.shape[1] - 1)
     covariance = (covariance + covariance.T) / 2
     if not np.isfinite(covariance).all():
         raise ValueError('Noise covariance exceeds the finite numerical range')
-    eigenvalues = np.linalg.eigvalsh(covariance)
-    cutoff = max(float(eigenvalues[-1]), 0.) * DEFAULT_RANK_RTOL
-    rank = int(np.count_nonzero(eigenvalues > cutoff))
-    info = dict(estimator='empirical_centered', ddof=1, n_samples=values.shape[1],
+    empirical_rank = int(np.count_nonzero(_standardized_spectrum(covariance, DEFAULT_RANK_RTOL)[-1]))
+    shrinkage, shrinkage_dimension = 0., 0
+    if estimator == 'oas' and empirical_rank:
+        covariance, shrinkage, shrinkage_dimension = _oas_covariance(centered, basis)
+        covariance = (covariance + covariance.T) / 2
+    rank = int(np.count_nonzero(_standardized_spectrum(covariance, DEFAULT_RANK_RTOL)[-1]))
+    info = dict(estimator='empirical_centered' if estimator == 'empirical' else 'oas_standardized_subspace',
+                ddof=1, n_samples=values.shape[1],
                 n_channels=values.shape[0], rank=rank, rank_rtol=DEFAULT_RANK_RTOL,
+                empirical_rank=empirical_rank, constraint_rank=basis.shape[1],
+                shrinkage=shrinkage, shrinkage_dimension=shrinkage_dimension,
+                rank_basis='diagonally_standardized_covariance',
+                projection_applied=bool(projection_applied),
+                projector_supplied=projector is not None,
+                projection_constraints=(['average_reference'] if average_reference else [])
+                    + (['supplied_projector'] if projector is not None else []),
+                shrinkage_target='isotropic_in_standardized_constraint_subspace' if estimator == 'oas' else None,
                 reference='average' if average_reference else 'as_supplied',
                 units='exported_sensor_unit_squared', channel_order='same_as_sensor_rows',
                 estimation_window='entire_generated_sample',
@@ -134,9 +239,10 @@ def noise_covariance(noise, *, average_reference=False):
     return covariance, info
 
 
-def covariance_payload(sensor_noise, *, background_sensor=None, average_reference=False):
+def covariance_payload(sensor_noise, *, background_sensor=None, average_reference=False, projector=None):
     """Total nuisance covariance includes finite-sample cross terms with background."""
-    measurement, measurement_info = noise_covariance(sensor_noise, average_reference=average_reference)
+    measurement, measurement_info = noise_covariance(sensor_noise, average_reference=average_reference,
+                                                     projector=projector)
     measurement_info['components'] = ['sensor_noise']
     if background_sensor is None:
         total, total_info = measurement.copy(), dict(measurement_info)
@@ -145,7 +251,8 @@ def covariance_payload(sensor_noise, *, background_sensor=None, average_referenc
         noise = np.asarray(sensor_noise, dtype=np.float64)
         if background.shape != noise.shape:
             raise ValueError('Background and sensor noise must have identical channel/time shapes')
-        total, total_info = noise_covariance(background + noise, average_reference=average_reference)
+        total, total_info = noise_covariance(background + noise, average_reference=average_reference,
+                                            projector=projector)
         total_info['components'] = ['background_sensor', 'sensor_noise']
     return ({'noise_covariance': total, 'sensor_noise_covariance': measurement},
             {'noise_covariance_info': total_info, 'sensor_noise_covariance_info': measurement_info})
@@ -154,23 +261,19 @@ def covariance_payload(sensor_noise, *, background_sensor=None, average_referenc
 def whitener_from_covariance(covariance, *, rtol=DEFAULT_RANK_RTOL):
     """Return rank x channels W; apply the SAME W to sensor data and leadfield.
 
-    W C W.T is identity in the retained subspace. Zero noise has no defined
-    whitener; callers should skip whitening for explicitly noiseless samples.
+    W C W.T is identity on the retained covariance support (up to discarded
+    numerical modes). W also projects away the physical covariance nullspace.
+    Zero noise has no defined whitener; skip explicitly noiseless samples.
+    Diagonal standardization makes rank independent of sensor unit conventions.
     """
-    matrix = np.asarray(covariance, dtype=np.float64)
-    if (matrix.ndim != 2 or matrix.shape[0] == 0 or matrix.shape[0] != matrix.shape[1]
-            or not np.isfinite(matrix).all()):
-        raise ValueError('Covariance must be a finite nonempty square matrix')
-    if not np.isfinite(rtol) or not 0 < rtol < 1:
-        raise ValueError('rtol must lie strictly between zero and one')
-    scale = float(np.max(np.abs(matrix)))
-    if np.max(np.abs(matrix - matrix.T)) > scale * rtol:
-        raise ValueError('Covariance must be symmetric')
-    eigenvalues, eigenvectors = np.linalg.eigh((matrix + matrix.T) / 2)
-    cutoff = max(float(eigenvalues[-1]), 0.) * rtol
-    if eigenvalues[0] < -cutoff:
-        raise ValueError('Covariance must be positive semidefinite')
-    keep = eigenvalues > cutoff
+    eigenvalues, eigenvectors, scaling, positive, keep = _standardized_spectrum(covariance, rtol)
     if not np.any(keep):
         raise ValueError('Zero noise covariance: skip whitening for this noiseless sample')
-    return eigenvectors[:, keep].T / np.sqrt(eigenvalues[keep])[:, None]
+    whitener = np.zeros((int(np.count_nonzero(keep)), len(positive)))
+    supported = eigenvectors[:, keep].T / np.sqrt(eigenvalues[keep])[:, None] / scaling[None, :]
+    if np.count_nonzero(keep) < len(scaling):
+        # Restore the physical support without another unit-dependent rank cut.
+        physical_basis, _ = np.linalg.qr(scaling[:, None] * eigenvectors[:, keep], mode='reduced')
+        supported = (supported @ physical_basis) @ physical_basis.T
+    whitener[:, positive] = supported
+    return whitener

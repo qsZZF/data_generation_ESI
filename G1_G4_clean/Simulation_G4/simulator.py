@@ -5,7 +5,7 @@ and Tables S1--S4. This is a custom JR integrator, not TVB's single-branch JR.
 Parameters use physical milliseconds, mV, s^-1, and dimensionless C factors.
 
 Deliberate corrections/adaptations to the released implementation:
-* Table S1 sigmoid/C3 bounds and shared Gaussian 220 +/- 22 s^-1 drive;
+* Table S1 sigmoid/C3 bounds and Gaussian 220 +/- 22 s^-1 drive;
 * physical 0--10 ms sliding delay, fractional interpolation, stable sigmoid;
 * source-indexed cumulative firing statistics via Welford (linear time);
 * zero initial states/history (no artificial 5 mV initial observation);
@@ -42,6 +42,33 @@ PARAMETER_NAMES = tuple(PARAMETER_BOUNDS)
 # Float32 inverse-network heads can cross a physical bound by a few ULPs.
 # This is a roundoff allowance, not an extension of the simulation prior.
 _BOUND_ROUNDOFF = 4 * np.finfo(np.float32).eps
+
+
+def drive_config(drive_mode="shared", drive_correlation=None):
+    """Canonical drive identity; absent legacy settings mean shared drive."""
+    defaults = {"shared": 1., "independent": 0., "mixed": .15}
+    if drive_mode not in defaults:
+        raise ValueError("drive_mode must be shared, independent, or mixed")
+    rho = defaults[drive_mode] if drive_correlation is None else float(drive_correlation)
+    if not np.isfinite(rho) or not 0 <= rho <= 1:
+        raise ValueError("drive_correlation must be finite and in [0,1]")
+    if drive_mode != "mixed" and rho != defaults[drive_mode]:
+        raise ValueError("drive_correlation conflicts with drive_mode")
+    return {"drive_mode": drive_mode, "drive_correlation": rho}
+
+
+def _generate_drive(seed, n_samples, n_regions, mode, rho):
+    """Fixed-grid input rates; rho is input correlation, not output synchrony."""
+    if rho == 1:
+        # Keep the legacy RNG sequence and arithmetic bit for bit.
+        shared = np.random.default_rng(seed).normal(220, 22, n_samples)
+        return np.repeat(shared[:, None], n_regions, axis=1)
+    independent = np.random.default_rng(np.random.SeedSequence([seed, 1])).standard_normal(
+        (n_samples, n_regions))
+    if rho == 0:
+        return 220 + 22 * independent
+    shared = np.random.default_rng(seed).standard_normal(n_samples)
+    return 220 + 22 * (math.sqrt(rho) * shared[:, None] + math.sqrt(1 - rho) * independent)
 
 
 def _truncated_normal(rng, low, high, mean, std, size):
@@ -130,7 +157,7 @@ def _afferent(delayed, mean, m2, count, parameters, targets, sources, weights, d
         sigma = 1.0 if count < 2 else max(math.sqrt(max(m2[region], 0.0) / count), 1e-6)
         firing = _sigmoid(delayed[region], parameters[4, region], parameters[5, region], parameters[6, region])
         centered[region] = 22 * (firing - mean[region]) / sigma
-    inputs = np.full(n_regions, drive)
+    inputs = drive.copy()
     for edge in range(len(weights)):
         inputs[targets[edge]] += weights[edge] * centered[sources[edge]]
     return inputs
@@ -178,7 +205,7 @@ def _integrate(parameters, targets, sources, weights, delay_steps, dt, warmup_st
 def simulate(parameters, connectivity, *, duration_s=2.0, warmup_s=1.0,
              sampling_rate_hz=256.0, dt_ms=0.5, seed=0,
              connectivity_orientation="target_source", connectivity_mode="raw",
-             drive_sampling_hz=256.0):
+             drive_sampling_hz=256.0, drive_mode="shared", drive_correlation=None):
     """Return raw source PSP (regions,time) in mV, relative time, and metadata.
 
     Connectivity must contain dimensionless weights in [0,2]. ``max`` mode
@@ -190,7 +217,12 @@ def simulate(parameters, connectivity, *, duration_s=2.0, warmup_s=1.0,
     Parameter-bound excesses no larger than four float32 epsilons times the
     bound magnitude (minimum scale one) are repaired and listed in metadata.
     Larger out-of-prior estimates are rejected, including joint tau bounds.
+    ``shared`` preserves the legacy paper-style input. ``independent`` drives
+    regions separately; ``mixed`` has pairwise input correlation rho (default
+    0.15) with unchanged marginal mean/variance. Output correlations need not
+    equal rho because regional dynamics and coupling also shape synchrony.
     """
+    drive_settings = drive_config(drive_mode, drive_correlation)
     for name, value in (("duration_s", duration_s), ("sampling_rate_hz", sampling_rate_hz),
                         ("dt_ms", dt_ms), ("drive_sampling_hz", drive_sampling_hz)):
         if not np.isfinite(value) or value <= 0:
@@ -256,7 +288,8 @@ def simulate(parameters, connectivity, *, duration_s=2.0, warmup_s=1.0,
     warmup_steps = int(math.ceil(warmup_s * internal_rate - 1e-10))
     saved_steps = int(math.ceil(n_samples * internal_rate / sampling_rate_hz - 1e-10))
     total_steps = warmup_steps + saved_steps
-    drive = np.random.default_rng(seed).normal(220, 22, int(math.ceil(total_steps / stride)))
+    drive = _generate_drive(seed, int(math.ceil(total_steps / stride)), n_regions,
+                            drive_mode, drive_settings["drive_correlation"])
     targets, sources = np.nonzero(matrix)
     weights = matrix[targets, sources]
     native = _integrate(np.ascontiguousarray(values), targets, sources,
@@ -273,11 +306,14 @@ def simulate(parameters, connectivity, *, duration_s=2.0, warmup_s=1.0,
     meta = {
         "model": "paper_dual_timescale_jr", "integrator": "Heun",
         "n_regions": n_regions, "source_unit": "mV_PSP", "time_unit": "s",
+        "source_representation": "regional_PSP_not_calibrated_dipole_current",
         "sampling_rate_hz": float(sampling_rate_hz), "duration_s": float(duration_s),
         "warmup_requested_s": float(warmup_s), "warmup_discarded_s": warmup_steps / internal_rate,
         "dt_ms_requested": float(dt_ms), "dt_ms_actual": 1000 / internal_rate,
         "delay_ms": delay_ms, "delay_interpolation": "linear_PSP_sliding_history",
-        "drive": "shared_iid_gaussian_zero_order_hold", "drive_mean_hz": 220.0,
+        "drive": f"{drive_mode}_iid_gaussian_zero_order_hold", "drive_mean_hz": 220.0,
+        **drive_settings, "drive_correlation_scope": "pairwise_external_input_not_PSP",
+        "drive_independent_seed_sequence": [int(seed), 1],
         "drive_std_hz": 22.0, "drive_sampling_hz": float(drive_sampling_hz),
         "connectivity_orientation_input": connectivity_orientation,
         "connectivity_mode": connectivity_mode, "connectivity_divisor": scale,

@@ -9,13 +9,14 @@ from pathlib import Path
 import numpy as np
 
 from .nmm_bank import read_bank, parent_group_ids
-from .nmm_mixing import disjoint_baseline_start
+from .nmm_mixing import disjoint_baseline_start, validate_sensor_snr_settings
 from Simulation_G1.noise_covariance import baseline_sample_count
+from Simulation_G1.real_noise import load_noise_registry
 
 
 SPLITS = ("train", "val", "test")
 NOISE_TYPES = {"iid_white", "white", "pink", "powerlaw", "specparam_resting",
-               "mixed", "eegsourcesim_resting"}
+               "mixed", "eegsourcesim_resting", "real"}
 SPATIAL_PROFILES = {"uniform", "decay", "diffuse", "contract", "pulse"}
 
 
@@ -129,7 +130,11 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
                        source_snr_db=None, background_bank_dirs=(), sensor_snrs=(10.,),
                        sensor_noise_types=("iid_white",), spatial_profiles=("uniform",),
                        decay_mm=12., spatial_start_s=0., spatial_duration_s=.3,
-                       average_reference=True, normalize_source=True, baseline_duration_s=2.):
+                       average_reference=True, normalize_source=True, baseline_duration_s=2.,
+                       source_snr_metric='vertex_mean', covariance_estimator='empirical',
+                       amplitude_settings=None, record_observability=False, observability_settings=None,
+                       real_noise_registry=None, allow_combined_real_source_background=False,
+                       sensor_snr_mode='active_rms', sensor_snr_clip_quantile=.95):
     """Write a JSONL table with byte offsets and parent-disjoint split indices.
 
     Input banks must already share one sampling rate, atlas, projection and unit.
@@ -137,6 +142,22 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
     split and cannot share a parent identity or simulation seed with foreground.
     """
     output_dir = Path(output_dir)
+    validate_sensor_snr_settings(sensor_snr_mode, sensor_snr_clip_quantile)
+    if source_snr_metric not in ('vertex_mean', 'area_weighted'):
+        raise ValueError('source_snr_metric must be vertex_mean or area_weighted')
+    if covariance_estimator not in ('empirical', 'oas'):
+        raise ValueError('covariance_estimator must be empirical or oas')
+    from Simulation_G1.amplitude import validate_amplitude_settings
+    amplitude = dict(amplitude_settings or {'amplitude_mode': 'relative'})
+    if set(amplitude) - {'amplitude_mode', 'foreground_peak_am', 'leadfield_source_unit', 'sensor_units', 'sensor_noise_std'}:
+        raise ValueError('Unknown amplitude setting')
+    for snr in sensor_snrs:
+        validate_amplitude_settings(**amplitude, sensor_snr_db=snr, normalize_source=normalize_source)
+    if not isinstance(record_observability, bool):
+        raise ValueError('record_observability must be Boolean')
+    observability_settings = dict(observability_settings or {})
+    if set(observability_settings) - {'numerical_rtol', 'near_null_rtol'}:
+        raise ValueError('Unknown observability setting')
     if output_dir.exists():
         raise FileExistsError(f"Output already exists: {output_dir}")
     fractions = np.asarray(split_fractions, dtype=float)
@@ -154,6 +175,15 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
     profiles, noises, snrs = tuple(spatial_profiles), tuple(sensor_noise_types), tuple(sensor_snrs)
     if not profiles or set(profiles)-SPATIAL_PROFILES or not noises or set(noises)-NOISE_TYPES:
         raise ValueError("Unknown or empty spatial profiles / synthetic sensor noise choices")
+    if not isinstance(allow_combined_real_source_background, bool):
+        raise ValueError('allow_combined_real_source_background must be Boolean')
+    if ('real' in noises) != (real_noise_registry is not None):
+        raise ValueError('Real sensor noise choices require real_noise_registry and vice versa')
+    if real_noise_registry is not None and amplitude.get('amplitude_mode', 'relative') == 'relative' and None in snrs:
+        raise ValueError('Registered noise in relative mode requires finite sensor_snrs')
+    if (real_noise_registry is not None and amplitude.get('amplitude_mode') == 'physical'
+            and (amplitude.get('sensor_noise_std') is None or not np.any(np.asarray(amplitude['sensor_noise_std']) > 0))):
+        raise ValueError('Registered physical noise requires at least one positive sensor_noise_std')
     if source_mode == "network" and set(profiles) != {"uniform"}:
         raise ValueError("Network mode preserves the atlas projection and requires uniform spatial profiles")
     if not snrs or any(value is not None and (isinstance(value, bool) or not np.isfinite(value)) for value in snrs):
@@ -261,6 +291,33 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
         assignments.update(_assign_splits(extra_groups, fractions, rng))
     parent_splits = {parent: assignments[component] for parent, component in sorted(components.items())
                      if component in assignments}
+    noise_registry = None
+    noise_choices = {split: [] for split in SPLITS}
+    if real_noise_registry is not None:
+        registry_path = Path(real_noise_registry).resolve()
+        registry_hash = _sha256(registry_path)
+        registry = load_noise_registry(registry_path)
+        if _sha256(registry_path) != registry_hash:
+            raise ValueError('Real-noise registry changed during preparation')
+        noise_registry = dict(path=str(registry_path), sha256=registry_hash)
+        reference = 'average' if average_reference else 'as_supplied'
+        for noise_record in registry['records']:
+            # Every declared ancestor is authoritative even for unused/short records.
+            for parent in noise_record['parent_data_group_ids']:
+                if parent in parent_splits and parent_splits[parent] != noise_record['split']:
+                    raise ValueError('Registered-noise ancestry conflicts with NMM split assignment')
+                parent_splits[parent] = noise_record['split']
+            if (noise_record['fs_hz'] == rate and noise_record['reference'] == reference
+                    and noise_record['shape'][1] >= baseline_length + length):
+                if amplitude.get('amplitude_mode', 'relative') == 'relative' and len(set(noise_record['sensor_units'])) != 1:
+                    continue
+                if (source_snr_db is not None and noise_record['noise_role'] != 'empty_room'
+                        and not allow_combined_real_source_background):
+                    continue
+                noise_choices[noise_record['split']].append(noise_record)
+        for split in set(parent_splits[record['entry']['simulation_group_id']] for record in foreground):
+            if not noise_choices[split]:
+                raise ValueError(f'No compatible registered noise in split {split}; check rate/reference/length/units and combined background opt-in')
     for record in foreground:
         entry = record["entry"]
         record["split"] = parent_splits[entry["simulation_group_id"]]
@@ -299,8 +356,12 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
                         parents.update(candidate["parents"])
                     config = dict(source_mode=source_mode, selected_regions=record["selected"],
                         baseline_duration_s=float(baseline_duration_s),
+                        source_snr_metric=source_snr_metric, covariance_estimator=covariance_estimator,
+                        amplitude=amplitude, record_observability=record_observability,
+                        observability_settings=observability_settings,
                         source_snr_db=None if source_snr_db is None else float(source_snr_db),
                         sensor_noise_type=noises[int(vrng.integers(len(noises)))],
+                        sensor_snr_mode=sensor_snr_mode, sensor_snr_clip_quantile=float(sensor_snr_clip_quantile),
                         sensor_snr_db=snrs[int(vrng.integers(len(snrs)))], sensor_seed=int(vrng.integers(0, 2**32)),
                         spatial_profile=profile, spatial_decay_mm=0. if profile == "uniform" else float(decay_mm),
                         spatial=dict(mode="static" if profile in {"uniform", "decay"} else profile,
@@ -309,6 +370,16 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
                         average_reference=average_reference, normalize_source=normalize_source)
                     if config["sensor_snr_db"] is not None:
                         config["sensor_snr_db"] = float(config["sensor_snr_db"])
+                    if noise_registry is not None:
+                        noise_record = None
+                        if config['sensor_noise_type'] == 'real':
+                            choices = noise_choices[record['split']]
+                            noise_record = choices[int(vrng.integers(len(choices)))]
+                            parents.update(noise_record['parent_data_group_ids'])
+                        config.update(real_noise_registry=noise_registry['path'] if noise_record else None,
+                            real_noise_record_id=noise_record['record_id'] if noise_record else None,
+                            real_noise_split=record['split'] if noise_record else None,
+                            allow_combined_real_source_background=allow_combined_real_source_background)
                     row = dict(period_id=period_id, recipe_id=f"{period_id}-{variant:04d}", split=record["split"],
                         foreground=_reference(record, start, length), background=selected_background,
                         baseline_background=baseline_background,
@@ -322,11 +393,20 @@ def build_period_index(bank_dirs, output_dir, *, period_s=1., stride_s=None,
         filename = f"{name}_indices.npy"
         np.save(output_dir/filename, np.asarray(indices, dtype=np.int64), allow_pickle=False)
         splits[name] = dict(file=filename, sha256=_sha256(output_dir/filename), count=len(indices))
-    manifest = dict(schema="nmm-periods-v1", banks=banks, rate_hz=rate,
+    if noise_registry is not None and _sha256(noise_registry['path']) != noise_registry['sha256']:
+        raise ValueError('Real-noise registry changed during preparation')
+    manifest = dict(schema="nmm-periods-v5", banks=banks, rate_hz=rate,
         period_samples=length, stride_samples=stride, tail_policy=tail_policy,
         table=dict(file="periods.jsonl", index="offsets.npy", sha256=_sha256(output_dir/"periods.jsonl"),
                    index_sha256=_sha256(output_dir/"offsets.npy"), count=len(offsets)),
         splits=splits, parent_splits=parent_splits, seed=seed,
+        mixing_semantics='nmm-mixing-v2', source_snr_metric=source_snr_metric,
+        covariance_estimator=covariance_estimator,
+        sensor_snr_mode=sensor_snr_mode, sensor_snr_clip_quantile=float(sensor_snr_clip_quantile),
+        amplitude=amplitude, record_observability=record_observability,
+        observability_settings=observability_settings,
+        **({'real_noise_registry': noise_registry,
+            'allow_combined_real_source_background': allow_combined_real_source_background} if noise_registry else {}),
         statistics=dict(recordings=len(foreground), periods=periods, variants_per_period=variants_per_period,
                         discarded_tail_samples=discarded, stride_gap_samples=gap_samples),
         source_unit=signature[4], background_policy="independent same-split raw JR rest" if background_paths else "same-record partition" if source_mode == "partition" else "none" if source_mode == "selected" else "original network")
@@ -351,8 +431,14 @@ def main(argv=None):
     parser.add_argument("--selection", choices=("protected", "configured"), default="protected")
     parser.add_argument("--regions", nargs="+", type=int)
     parser.add_argument("--source-snr-db", type=float)
+    parser.add_argument('--source-snr-metric', choices=('vertex_mean', 'area_weighted'), default='vertex_mean')
+    parser.add_argument('--covariance-estimator', choices=('empirical', 'oas'), default='empirical')
+    parser.add_argument('--amplitude-config', type=Path)
+    parser.add_argument('--record-observability', action='store_true')
+    parser.add_argument('--real-noise-registry', type=Path)
+    parser.add_argument('--allow-combined-real-source-background', action='store_true')
     sensor_group=parser.add_mutually_exclusive_group()
-    sensor_group.add_argument("--sensor-snrs", nargs="+", type=float, default=[10.])
+    sensor_group.add_argument("--sensor-snrs", nargs="+", type=lambda value: None if value.lower() == 'none' else float(value), default=[10.])
     sensor_group.add_argument("--no-sensor-noise", action="store_true")
     parser.add_argument("--sensor-noise-types", nargs="+", choices=sorted(NOISE_TYPES), default=["iid_white"])
     parser.add_argument("--spatial-profiles", nargs="+", choices=sorted(SPATIAL_PROFILES), default=["uniform"])
@@ -368,7 +454,11 @@ def main(argv=None):
     args["selected_regions"] = args.pop("regions")
     args["average_reference"] = not args.pop("no_average_reference")
     args["normalize_source"] = not args.pop("no_normalize_source")
+    amplitude_path = args.pop('amplitude_config')
+    args['amplitude_settings'] = json.loads(amplitude_path.read_text(encoding='utf-8')) if amplitude_path else None
     if args.pop("no_sensor_noise"):
+        if args['amplitude_settings'] and np.any(args['amplitude_settings'].get('sensor_noise_std', 0)):
+            parser.error('--no-sensor-noise conflicts with a nonzero physical sensor_noise_std; use --sensor-snrs none')
         args["sensor_snrs"]=(None,)
     result = build_period_index(**args)
     print(json.dumps({"output_dir": args["output_dir"], **result["statistics"]}, indent=2))

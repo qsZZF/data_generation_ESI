@@ -124,7 +124,7 @@ def load_brainstorm_leadfield(leadfield_path: str | Path, n_vertices: int | None
     return leadfield
 
 
-def load_brainstorm_cortex(cortex_path: str | Path) -> dict[str, Any]:
+def load_brainstorm_cortex(cortex_path: str | Path, *, use_cortex_mask=True) -> dict[str, Any]:
     with h5py.File(cortex_path, "r") as h5_file:
         if "Cortex" in h5_file:
             group = h5_file["Cortex"]
@@ -149,6 +149,14 @@ def load_brainstorm_cortex(cortex_path: str | Path) -> dict[str, Any]:
             )
         else:
             cortex["VertConn"] = scipy.sparse.csc_matrix(vert_conn[:])
+        cortex_key = group.name
+    if use_cortex_mask:
+        from Simulation_G1.cortical import load_cortex_mask
+        count = cortex['Vertices'].shape[1] if cortex['Vertices'].shape[0] == 3 else cortex['Vertices'].shape[0]
+        mask, provenance = load_cortex_mask(cortex_path, count, cortex_key=cortex_key)
+        cortex.update(CortexMask=mask, CortexMaskProvenance=provenance)
+    else:
+        cortex['CortexMaskProvenance'] = 'explicit_legacy_all_vertices'
     return cortex
 
 
@@ -219,11 +227,13 @@ class G2SimulationConfig:
     spatial: SpatialDynamicsConfig = field(default_factory=SpatialDynamicsConfig)
     normalize_region_signals: bool = True
     normalize_source: bool = True
-    sensor_noise_type: str = "white"
+    sensor_noise_type: str = "iid_white"
     sensor_snr_db: float | None = 5.0
     sensor_snr_mode: str = "robust_global_rms"
     sensor_snr_clip_quantile: float = 0.95
     baseline_duration_s: float = 2.0
+    covariance_estimator: str = 'empirical'
+    record_observability: bool = False
     average_reference: bool = True
     random_seed: int | None = None
     nmm_sample_id: str | None = None
@@ -532,7 +542,17 @@ class G2SourceSimulator:
         meta["noise_sensor_psd_summary"] = estimate_power_spectrum_summary(noise, config.srate)
         meta["real_sensor_noise_used"] = real_sensor_noise is not None
         covariances, covariance_info = baseline_covariance_payload(baseline, noise.astype(np.float32),
-            average_reference=average_reference, baseline_metadata=baseline_info)
+            average_reference=average_reference, baseline_metadata=baseline_info,
+            estimator=config.covariance_estimator)
+        if config.record_observability:
+            from Simulation_G1.observability import analyze_observability
+            if not hasattr(self, '_observability_cache'):
+                self._observability_cache = {}
+            meta['observability'] = analyze_observability(self.leadfield, source,
+                noise_covariance=covariances['noise_covariance'], average_reference=average_reference,
+                cache=self._observability_cache)
+            meta['observability']['target'] = 'entire_exported_source_legacy_API'
+            meta['observability'].pop('cache_hit', None)
         meta.update(covariance_info)
         meta.update({key: value.tolist() for key, value in covariances.items()})
         meta["noise_covariance_target"] = "entire_exported_source; no separate source-background target in legacy API"

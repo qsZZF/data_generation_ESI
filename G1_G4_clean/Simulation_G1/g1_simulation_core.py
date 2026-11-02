@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -10,11 +11,15 @@ import scipy.signal
 import scipy.sparse
 
 try:
+    from .cortical import cortex_mask_from_dict, cortex_mask_metadata, validate_cortex_mask
+    from .geodesic import PatchCapacityError, mesh_edge_graph, cached_geodesic_distances, grow_geodesic_patch
     from .noise_covariance import (baseline_covariance_payload, baseline_sample_count,
                                    sensor_noise_with_baseline)
     from .spatial import (SpatialDynamicsConfig, gaussian_weights, patch_hop_order,
                           spatial_envelope, validate_disjoint_supports)
 except ImportError:
+    from cortical import cortex_mask_from_dict, cortex_mask_metadata, validate_cortex_mask
+    from geodesic import PatchCapacityError, mesh_edge_graph, cached_geodesic_distances, grow_geodesic_patch
     from noise_covariance import (baseline_covariance_payload, baseline_sample_count,
                                   sensor_noise_with_baseline)
     from spatial import (SpatialDynamicsConfig, gaussian_weights, patch_hop_order,
@@ -35,6 +40,7 @@ class G1SimulationConfig:
     time_window: tuple[float, float] = (-0.2, 0.8)
     n_patch: int = 1
     patch_area_mm2: float | list[float] = 100.0
+    patch_geometry: str = 'geodesic'
     decay_mm: float | list[float] = 15.0
     seed_vertices: list[int] | None = None
     min_seed_distance_mm: float = 20.0
@@ -59,12 +65,17 @@ class G1SimulationConfig:
         ]
     )
     source_background_type: str | None = None
+    source_background_spectral: dict[str, Any] = field(default_factory=dict)
     source_snr_db: float | None = None
-    sensor_noise_type: str = "white"
+    sensor_noise_type: str = "iid_white"
     sensor_snr_db: float | None = 10.0
-    sensor_snr_mode: str = "robust_global_rms"
+    sensor_snr_mode: str = "active_rms"
     sensor_snr_clip_quantile: float = 0.95
     real_noise_id: str | None = None
+    real_noise_registry: str | None = None
+    real_noise_record_id: str | None = None
+    real_noise_split: str | None = None
+    allow_combined_real_source_background: bool = False
     average_reference: bool = True
     normalize_source: bool = True
     normalize_sensor: bool = False
@@ -75,12 +86,72 @@ class G1SimulationConfig:
     patch_gains: list[float] | None = None
     sensor_noise_peak_ratio: float | None = None
     baseline_duration_s: float = 2.0
+    covariance_estimator: str = 'empirical'
+    amplitude_mode: str = 'relative'
+    foreground_peak_am: float | None = None
+    leadfield_source_unit: str | None = None
+    sensor_units: str | list[str] | None = None
+    sensor_noise_std: float | list[float] | None = None
+    record_observability: bool = False
+    observability_settings: dict[str, Any] = field(default_factory=dict)
     source_model: str = 'patch'
     spectral: dict[str, Any] = field(default_factory=dict)
+    multiscale: dict[str, Any] = field(default_factory=dict)
+    source_background_multiscale: dict[str, Any] = field(default_factory=dict)
 
     def validate_recipe(self) -> None:
         """Validate opt-in replay fields without changing legacy RNG behavior."""
         baseline_sample_count(self.baseline_duration_s, self.srate)
+        if self.sensor_snr_mode not in ('global_rms', 'robust_global_rms', 'active_rms'):
+            raise ValueError('Unknown sensor_snr_mode')
+        if (isinstance(self.sensor_snr_clip_quantile, (bool, np.bool_))
+                or not np.isfinite(self.sensor_snr_clip_quantile)
+                or not .5 <= self.sensor_snr_clip_quantile <= .999):
+            raise ValueError('sensor_snr_clip_quantile must lie in [.5, .999]')
+        if bool(self.real_noise_registry) != bool(self.real_noise_record_id):
+            raise ValueError('Registered noise requires both registry and record ID')
+        if self.real_noise_split is not None and (not self.real_noise_registry or self.real_noise_split not in ('train', 'val', 'test')):
+            raise ValueError('real_noise_split requires a registry and train, val or test')
+        if self.real_noise_registry and self.sensor_noise_type != 'real':
+            raise ValueError('Registered noise requires sensor_noise_type=real')
+        if not isinstance(self.allow_combined_real_source_background, bool):
+            raise ValueError('allow_combined_real_source_background must be Boolean')
+        if not isinstance(self.multiscale, dict) or not isinstance(self.source_background_multiscale, dict):
+            raise ValueError('Multiscale settings must be dictionaries')
+        if self.multiscale and self.source_model == 'patch':
+            raise ValueError('multiscale requires a spectral foreground')
+        if self.source_background_multiscale and self.source_background_type != 'spectral_rest':
+            raise ValueError('source_background_multiscale requires spectral_rest background')
+        try:
+            from .amplitude import validate_amplitude_settings
+        except ImportError:
+            from amplitude import validate_amplitude_settings
+        validate_amplitude_settings(amplitude_mode=self.amplitude_mode,
+            leadfield_source_unit=self.leadfield_source_unit, sensor_units=self.sensor_units,
+            foreground_peak_am=self.foreground_peak_am, sensor_noise_std=self.sensor_noise_std,
+            sensor_snr_db=self.sensor_snr_db, normalize_source=self.normalize_source,
+            normalize_sensor=self.normalize_sensor, sensor_noise_peak_ratio=self.sensor_noise_peak_ratio)
+        if (self.real_noise_registry and self.amplitude_mode == 'physical'
+                and (self.sensor_noise_std is None or not np.any(np.asarray(self.sensor_noise_std) > 0))):
+            raise ValueError('Registered physical noise requires a positive sensor_noise_std')
+        if not isinstance(self.record_observability, bool):
+            raise ValueError('record_observability must be Boolean')
+        if (not isinstance(self.observability_settings, dict)
+                or set(self.observability_settings) - {'numerical_rtol', 'near_null_rtol'}):
+            raise ValueError('Unknown observability setting')
+        if self.patch_geometry not in ('geodesic', 'legacy_bfs'):
+            raise ValueError('patch_geometry must be geodesic or legacy_bfs')
+        if self.covariance_estimator not in ('empirical', 'oas'):
+            raise ValueError('covariance_estimator must be empirical or oas')
+        if not isinstance(self.source_background_spectral, dict):
+            raise ValueError('source_background_spectral must be a dictionary')
+        if self.source_background_spectral and self.source_background_type != 'spectral_rest':
+            raise ValueError('source_background_spectral requires source_background_type=spectral_rest')
+        if self.source_background_type == 'spectral_rest':
+            if self.source_model != 'patch' or self.source_snr_db is None:
+                raise ValueError('spectral_rest background requires patch foreground and source_snr_db')
+            if not np.isfinite(self.source_snr_db):
+                raise ValueError('source_snr_db must be finite')
         if self.source_model not in ('patch', 'lbo', 'lbo_network'):
             raise ValueError('source_model must be patch, lbo or lbo_network')
         if self.source_model == 'patch' and self.spectral:
@@ -785,6 +856,9 @@ class G1SourceSimulator:
         vertices: Array,
         faces: Array,
         vert_conn: scipy.sparse.spmatrix | dict[str, Array],
+        cortex_mask: Array | None = None,
+        cortex_mask_provenance: str | None = None,
+        channel_names: list[str] | None = None,
     ):
         self.leadfield = np.asarray(leadfield, dtype=float)
         self.vertices, self.faces, self.vert_conn = normalize_cortex(vertices, faces, vert_conn)
@@ -794,29 +868,68 @@ class G1SourceSimulator:
         _, self.vertex_area_coord2 = mesh_vertex_areas(self.vertices, self.faces)
         self.n_sources = self.vertices.shape[0]
         self.n_sensors = self.leadfield.shape[0]
+        if channel_names is not None and (len(channel_names) != self.n_sensors
+                or len(set(channel_names)) != self.n_sensors
+                or any(not isinstance(name, str) or not name.strip() for name in channel_names)):
+            raise ValueError('channel_names must be unique nonempty names in leadfield row order')
+        self.channel_names = None if channel_names is None else list(channel_names)
+        self.cortex_mask = validate_cortex_mask(cortex_mask, self.n_sources)
+        provenance = cortex_mask_provenance or ('provided_mask' if cortex_mask is not None
+                                               else 'unspecified_all_vertices')
+        self.cortex_mask_metadata = cortex_mask_metadata(self.cortex_mask, provenance)
+        # Keep the full mesh for spectral models; only patch growth is restricted.
+        eligibility = scipy.sparse.diags(self.cortex_mask.astype(float))
+        self.patch_vert_conn = (eligibility @ self.vert_conn @ eligibility).tocsc()
+        self.patch_vert_conn.eliminate_zeros()
+        self._geodesic_graph = None
+        self._geodesic_distance_cache = {}
+
+    @property
+    def geodesic_graph(self):
+        digest=hashlib.sha256()
+        for value in (self.vertices,self.cortex_mask,self.vert_conn.data,self.vert_conn.indices,self.vert_conn.indptr):
+            array=np.ascontiguousarray(value)
+            digest.update(array.dtype.str.encode())
+            digest.update(np.asarray(array.shape,dtype=np.int64).tobytes())
+            digest.update(memoryview(array).cast('B'))
+        identity=digest.hexdigest()
+        if self._geodesic_graph is None or getattr(self,'_geodesic_graph_identity',None)!=identity:
+            self._geodesic_graph = mesh_edge_graph(self.vertices*self.coord_to_mm,
+                                                    self.vert_conn, self.cortex_mask)
+            self._geodesic_graph_identity=identity
+        return self._geodesic_graph
 
     @classmethod
-    def from_brainstorm_cortex(cls, leadfield: Array, cortex: dict[str, Any]) -> "G1SourceSimulator":
-        return cls(leadfield, cortex["Vertices"], cortex["Faces"], cortex["VertConn"])
+    def from_brainstorm_cortex(cls, leadfield: Array, cortex: dict[str, Any], *, channel_names=None) -> "G1SourceSimulator":
+        mask, provenance = cortex_mask_from_dict(cortex)
+        return cls(leadfield, cortex["Vertices"], cortex["Faces"], cortex["VertConn"],
+                   cortex_mask=mask, cortex_mask_provenance=provenance, channel_names=channel_names)
 
     def generate_source(self, config: G1SimulationConfig) -> tuple[Array, dict[str, Any]]:
         source, meta, _, _ = self._generate_source_components(config)
         return source, meta
 
-    def _generate_source_components(self, config: G1SimulationConfig) -> tuple[Array, dict[str, Any], Array | None, Array | None]:
+    def _generate_source_components(self, config: G1SimulationConfig, *, components=None) -> tuple[Array, dict[str, Any], Array | None, Array | None]:
         """Generate baseline and event background jointly with common spatial mixing."""
         config.validate_recipe()
+        if components is not None:
+            components.clear()
         if config.source_model != 'patch':
             try:
                 from .spectral import generate_source_components
             except ImportError:
                 from spectral import generate_source_components
-            source, details, background, baseline = generate_source_components(self, config)
+            source, details, background, baseline = generate_source_components(self, config, components=components)
             metadata = {**asdict(config), **details, 'generator_type': 'G1_spectral',
                         'storage_policy': 'metadata_first', 'n_sources': self.n_sources,
                         'n_sensors': self.n_sensors, 'seed_vertices': [], 'patches': [],
                         'active_vertices': details['active_vertices'],
                         'source_background_saved': background is not None}
+            source, background, baseline = self._physical_source_amplitude(
+                config, source, background, baseline, metadata)
+            if components:
+                for key in components:
+                    components[key] = components[key] * metadata.get('source_amplitude_gain', 1.)
             return source, _json_safe(metadata), background, baseline
         rng = np.random.default_rng(config.random_seed)
         ts = TimeSeriesGenerator(config.srate, config.time_window, rng)
@@ -843,6 +956,7 @@ class G1SourceSimulator:
         foreground_source = None
         source_background = None
         baseline_background = None
+        background_details = None
         if config.source_snr_db is not None and config.source_background_type is not None:
             foreground_source = source.copy()
             foreground_power = float(np.mean(source.astype(float)**2))
@@ -850,9 +964,40 @@ class G1SourceSimulator:
             background_ts = (TimeSeriesGenerator(config.srate, config.time_window, background_rng)
                              if config.component_seeds is not None else ts)
             baseline_samples = baseline_sample_count(config.baseline_duration_s, config.srate)
-            joint_background = self._make_source_background(
-                source, background_ts, background_rng, config.source_background_type,
-                config.source_snr_db, baseline_samples=baseline_samples)
+            if config.source_background_type == 'spectral_rest':
+                try:
+                    from .spectral import generate_rest_background
+                except ImportError:
+                    from spectral import generate_rest_background
+                background_seed = (config.component_seeds['background'] if config.component_seeds is not None
+                                   else int(np.random.SeedSequence(config.random_seed, spawn_key=(1,)).generate_state(1)[0]))
+                settings = config.source_background_spectral
+                event_field, baseline_field, background_details = generate_rest_background(
+                    self, settings, srate=config.srate, time_window=config.time_window,
+                    baseline_duration_s=config.baseline_duration_s, seed=background_seed,
+                    source_model='lbo_network' if settings.get('network_path') else 'lbo',
+                    multiscale=config.source_background_multiscale, components=components)
+                event_field[~self.cortex_mask] = 0
+                baseline_field[~self.cortex_mask] = 0
+                background_power = float(np.mean(event_field ** 2))
+                if foreground_power <= 0 or background_power <= 0:
+                    raise ValueError('Foreground and spectral background must have positive power')
+                gain = float(np.exp(.5 * (np.log(foreground_power) - np.log(background_power))
+                                    - np.log(10) * config.source_snr_db / 20))
+                if not np.isfinite(gain) or gain <= 0:
+                    raise ValueError('Source SNR exceeds numerical scaling range')
+                joint_background = np.concatenate((baseline_field, event_field), axis=1) * gain
+                if components:
+                    for key in components:
+                        components[key][~self.cortex_mask] = 0
+                        components[key] *= gain
+                background_details.update(shared_source_background_gain=gain,
+                    cortex_mask_applied=True, cortex_mask_sha256=self.cortex_mask_metadata['sha256'],
+                    coefficient_energy_scope='modal identity before optional cortical masking; SNR uses vertex mean after masking')
+            else:
+                joint_background = self._make_source_background(
+                    source, background_ts, background_rng, config.source_background_type,
+                    config.source_snr_db, baseline_samples=baseline_samples)
             baseline_background = joint_background[:, :baseline_samples].astype(np.float32)
             source_background = joint_background[:, baseline_samples:]
             source += source_background.astype(np.float32)
@@ -879,33 +1024,94 @@ class G1SourceSimulator:
         meta.update(foreground_overlap_policy="disjoint_full_supports",
                     spatial_transform_order="patch_envelope_then_temporal_demean_then_background_snr_then_optional_global_normalization",
                     source_snr_definition="whole-mesh mean vertex power after temporal demeaning")
+        if background_details is not None:
+            meta['source_background_metadata'] = background_details
         if source_background is not None and foreground_power > 0:
             noise_power = float(np.mean(source_background**2))
             meta["realized_source_snr_db"] = (float(10*np.log10(foreground_power/noise_power))
                                                 if noise_power > 0 else None)
+        source, exported_background, baseline_background = self._physical_source_amplitude(
+            config, source, exported_background, baseline_background, meta)
+        if components:
+            for key in components:
+                components[key] *= meta.get('source_amplitude_gain', 1.) / source_scale
+            # Keep the exported decomposition exact despite float32 mixing/normalization.
+            components['background_coarse'] = exported_background - components['background_residual']
+            components['baseline_background_coarse'] = baseline_background.astype(float) - components['baseline_background_residual']
+            components['foreground_coarse'] = source.astype(float) - exported_background
+            components['foreground_residual'] = np.zeros_like(components['foreground_coarse'])
+        elif components is not None:
+            foreground = source.astype(float) if exported_background is None else source.astype(float)-exported_background
+            components.update(foreground_coarse=foreground, foreground_residual=np.zeros_like(foreground))
+            if exported_background is not None:
+                components.update(background_coarse=exported_background,
+                    background_residual=np.zeros_like(exported_background),
+                    baseline_background_coarse=baseline_background.astype(float),
+                    baseline_background_residual=np.zeros_like(baseline_background,dtype=float))
         return source, meta, exported_background, baseline_background
 
-    def generate_sensor(
+    @staticmethod
+    def _physical_source_amplitude(config, source, background, baseline, metadata):
+        if config.amplitude_mode != 'physical':
+            return source, background, baseline
+        try:
+            from .amplitude import foreground_amplitude_gain
+        except ImportError:
+            from amplitude import foreground_amplitude_gain
+        foreground = source.astype(float) if background is None else source.astype(float) - background
+        gain = foreground_amplitude_gain(foreground, config.foreground_peak_am)
+        with np.errstate(over='raise', invalid='raise'):
+            source = (source.astype(float) * gain).astype(np.float32)
+            background = None if background is None else background * gain
+            baseline = None if baseline is None else (baseline.astype(float) * gain).astype(np.float32)
+        realized = source.astype(float) if background is None else source.astype(float) - background
+        if not np.isclose(np.max(abs(realized)), config.foreground_peak_am, rtol=5e-6, atol=0):
+            raise ValueError('Requested physical foreground peak cannot be represented in exported precision')
+        metadata.update(amplitude_unit='A*m', source_units='A*m', source_representation='per_vertex_activity',
+                        source_amplitude_gain=gain, realized_foreground_peak_am=float(np.max(abs(realized))),
+                        source_amplitude_mapping='one gain from foreground vertex peak, shared with nuisance and baseline',
+                        physical_amplitude_provenance='user_requested_not_a_physiological_default')
+        if 'source_background_power' in metadata:
+            metadata['source_background_power'] *= gain ** 2
+        return source, background, baseline
+
+    def generate_sample(
         self,
         config: G1SimulationConfig,
         real_sensor_noise: Array | None = None,
         *,
         compute_diagnostics: bool = True,
-    ) -> tuple[Array, Array, Array, Array, dict[str, Any]]:
-        """Generate a sample; optional peak limiting may increase the requested SNR.
+        source_components: dict[str, Array] | None = None,
+        noise_reader=None,
+    ) -> dict[str, Any]:
+        """Return named NumPy arrays and a small JSON-safe manifest for training.
 
         Peak limiting rescales the entire noise after referencing, never clips it.
         Disabling diagnostics skips PSD summaries; covariance and SNR metadata remain.
         noise_covariance is estimated from the separate baseline_sensor segment.
         oracle_noise_covariance describes event background plus sensor noise.
         """
+        config.validate_recipe()
         baseline_samples = baseline_sample_count(config.baseline_duration_s, config.srate)
+        if config.amplitude_mode == 'physical':
+            try:
+                from .amplitude import validate_amplitude_settings, generate_fixed_sensor_noise
+            except ImportError:
+                from amplitude import validate_amplitude_settings, generate_fixed_sensor_noise
+            physical_settings = validate_amplitude_settings(amplitude_mode='physical',
+                leadfield_source_unit=config.leadfield_source_unit, sensor_units=config.sensor_units,
+                foreground_peak_am=config.foreground_peak_am, sensor_noise_std=config.sensor_noise_std,
+                sensor_snr_db=config.sensor_snr_db, normalize_source=config.normalize_source,
+                normalize_sensor=config.normalize_sensor, sensor_noise_peak_ratio=config.sensor_noise_peak_ratio,
+                n_channels=self.n_sensors)
         baseline_background = None
-        if config.source_model != 'patch' or (config.source_snr_db is not None and config.source_background_type is not None):
-            source, meta, source_background, baseline_background = self._generate_source_components(config)
+        if source_components is not None or config.source_model != 'patch' or (config.source_snr_db is not None and config.source_background_type is not None):
+            source, meta, source_background, baseline_background = self._generate_source_components(config, components=source_components)
         else:
             source, meta = self.generate_source(config)
             source_background = None
+            if source_components is not None:
+                source_components.clear()
         clean = self.leadfield @ source
         clean = clean - clean.mean(axis=1, keepdims=True)
         average_reference = config.average_reference and config.modality.upper() == "EEG"
@@ -923,6 +1129,39 @@ class G1SourceSimulator:
             if average_reference:
                 baseline_sensor -= baseline_sensor.mean(axis=0, keepdims=True)
         meta["reference_mode"] = "average" if average_reference else "as_supplied"
+        if config.real_noise_registry:
+            if real_sensor_noise is not None:
+                raise ValueError('Provide registered noise or a bare array, not both')
+            if config.amplitude_mode != 'physical' and config.sensor_snr_db is None:
+                raise ValueError('Registered noise requires sensor_snr_db in relative amplitude mode')
+            if self.channel_names is None:
+                raise ValueError('Registered noise requires channel_names in leadfield row order')
+            try:
+                from .real_noise import load_noise_window
+            except ImportError:
+                from real_noise import load_noise_window
+            noise_seed = (config.component_seeds['sensor'] if config.component_seeds is not None
+                          else None if config.random_seed is None else config.random_seed + 1)
+            if noise_seed is None:
+                raise ValueError('Registered noise requires an explicit random_seed or component_seeds')
+            read_noise = load_noise_window if noise_reader is None else noise_reader.read
+            real_sensor_noise, noise_record = read_noise(config.real_noise_registry,
+                config.real_noise_record_id, expected_srate=config.srate,
+                expected_channels=self.channel_names,
+                expected_units=config.sensor_units if config.amplitude_mode == 'physical' else None,
+                expected_reference=meta['reference_mode'], baseline_samples=baseline_samples,
+                event_samples=clean.shape[1], seed=noise_seed, split=config.real_noise_split)
+            if config.amplitude_mode != 'physical' and len(set(noise_record['sensor_units'])) != 1:
+                raise ValueError('Relative SNR requires common sensor units; prepare common units or use an explicit physical contract')
+            if (source_background is not None and noise_record['noise_role'] != 'empty_room'
+                    and not config.allow_combined_real_source_background):
+                raise ValueError('Measured brain noise plus source background requires allow_combined_real_source_background=True')
+            noise_record.update(validation='verified_registry', combined_source_background=source_background is not None)
+            meta['real_noise_metadata'] = noise_record
+            meta['parent_data_group_ids'] = noise_record['parent_data_group_ids']
+        elif real_sensor_noise is not None:
+            meta['real_noise_metadata'] = dict(validation='unverified_array_metadata',
+                reason='Bare arrays do not declare sample rate, channels, units, reference or acquisition ancestry')
         noise = np.zeros_like(clean)
         baseline_noise = np.zeros_like(baseline_sensor)
         baseline_metadata = {'source_background_jointly_generated': source_background is not None,
@@ -931,7 +1170,17 @@ class G1SourceSimulator:
                              'baseline_interval_samples': [0, baseline_samples],
                              'event_interval_samples': [baseline_samples, baseline_samples + clean.shape[1]],
                              'foreground_present': False}
-        if config.sensor_snr_db is not None:
+        if config.amplitude_mode == 'physical':
+            sensor_seed = (config.component_seeds['sensor'] if config.component_seeds is not None
+                           else None if config.random_seed is None else config.random_seed + 1)
+            noise, baseline_noise, noise_info = generate_fixed_sensor_noise(self, clean,
+                srate=config.srate, noise_type=config.sensor_noise_type, seed=sensor_seed,
+                baseline_samples=baseline_samples, average_reference=average_reference,
+                noise_std=config.sensor_noise_std, sensor_units=config.sensor_units,
+                real_sensor_noise=real_sensor_noise)
+            baseline_metadata.update(noise_info)
+            meta.update(physical_settings)
+        elif config.sensor_snr_db is not None:
             sensor_seed = (config.component_seeds["sensor"] if config.component_seeds is not None
                            else None if config.random_seed is None else config.random_seed + 1)
             noise, baseline_noise, noise_info = sensor_noise_with_baseline(
@@ -986,20 +1235,145 @@ class G1SourceSimulator:
             - np.log10(max(float(np.mean(noise[:, event_mask]**2)), power_floor))))
         if compute_diagnostics:
             meta["source_psd_summary"] = estimate_power_spectrum_summary(source, config.srate)
-            meta["clean_sensor_psd_summary"] = estimate_power_spectrum_summary(clean, config.srate)
-            meta["noise_sensor_psd_summary"] = estimate_power_spectrum_summary(noise, config.srate)
+            if config.amplitude_mode != 'physical' or len(set(physical_settings['sensor_units'])) == 1:
+                meta["clean_sensor_psd_summary"] = estimate_power_spectrum_summary(clean, config.srate)
+                meta["noise_sensor_psd_summary"] = estimate_power_spectrum_summary(noise, config.srate)
+            else:
+                meta['sensor_psd_status'] = 'mixed_units_no_pooled_diagnostic'
         meta["real_sensor_noise_used"] = real_sensor_noise is not None
         noise = noise.astype(np.float32)
         covariance, covariance_info = baseline_covariance_payload(
             baseline_sensor, noise, background_sensor=background_sensor,
-            average_reference=average_reference, baseline_metadata=baseline_metadata)
-        meta.update({name: values.tolist() for name, values in covariance.items()})
+            average_reference=average_reference, baseline_metadata=baseline_metadata,
+            estimator=config.covariance_estimator)
+        if config.amplitude_mode == 'physical':
+            for key in ('noise_covariance_info', 'oracle_noise_covariance_info', 'sensor_noise_covariance_info'):
+                covariance_info[key]['channel_units'] = physical_settings['sensor_units']
+                covariance_info[key]['units'] = 'outer_product_of_declared_sensor_units'
+            if not np.any(clean) or not np.any(noise):
+                for key in ('realized_sensor_snr_db', 'realized_sensor_snr_reference_db', 'event_sensor_snr_db'):
+                    meta[key] = None
+                meta['sensor_snr_status'] = 'zero_signal_or_no_measurement_noise'
+            if len(set(physical_settings['sensor_units'])) > 1:
+                # A raw V/T/Tm power average is not invariant to channel units.
+                for key in ('realized_sensor_snr_db', 'realized_sensor_snr_reference_db', 'event_sensor_snr_db'):
+                    meta[key] = None
+                meta['sensor_snr_status'] = 'mixed_units_use_whitened_diagnostics'
+                meta['clean_sensor_power'] = None
+                meta['noise_sensor_power'] = None
+        if config.record_observability:
+            try:
+                from .observability import analyze_observability
+            except ImportError:
+                from observability import analyze_observability
+            if not hasattr(self, '_observability_cache'):
+                self._observability_cache = {}
+            target = source.astype(float) if source_background is None else source.astype(float) - source_background
+            effective_gain = self.leadfield / meta.get('sensor_normalization_scale', 1.)
+            meta['observability'] = analyze_observability(effective_gain, target,
+                noise_covariance=covariance['noise_covariance'], average_reference=average_reference,
+                cache=self._observability_cache, **config.observability_settings)
+            meta['observability']['target'] = 'foreground_excluding_source_background'
+            meta['observability'].pop('cache_hit', None)
         meta.update(covariance_info)
-        return sensor.astype(np.float32), clean.astype(np.float32), noise, source.astype(np.float32), meta
+        background = np.zeros_like(source) if source_background is None else source_background.astype(np.float32)
+        foreground = source if source_background is None else (source.astype(float)-background).astype(np.float32)
+        bg_sensor = np.zeros_like(clean) if background_sensor is None else background_sensor
+        fg_sensor = clean-bg_sensor
+        nuisance = bg_sensor+noise
+        def power_snr(signal, interference):
+            a,b=float(np.mean(signal**2)),float(np.mean(interference**2))
+            return float(10*(np.log10(a)-np.log10(b))) if a>0 and b>0 else None
+        target_gfp=np.sqrt(np.mean(fg_sensor**2,axis=0))
+        target_threshold=float(np.quantile(target_gfp,config.sensor_snr_clip_quantile))
+        target_window=target_gfp >= target_threshold
+        mixed_units=config.amplitude_mode=='physical' and len(set(physical_settings['sensor_units']))>1
+        active_power=float(np.mean(fg_sensor[:,target_window]**2))
+        nuisance_power=float(np.mean(nuisance**2))
+        active_reference_snr=(float(10*(np.log10(active_power)-np.log10(nuisance_power)))
+                              if active_power>0 and nuisance_power>0 else None)
+        meta.update(supervision_target='source_foreground',
+            source_total_definition='source_foreground + source_background; source is a source_total alias',
+            source_temporal_representation='per_vertex_event_mean_removed',
+            sensor_snr_reference_definition='selected clean-signal reference power / whole-event measurement-noise power',
+            sensor_snr_calibration_definition=(
+                'no requested SNR; fixed sensor-noise amplitude independent of target' if config.amplitude_mode=='physical'
+                else f'10log10({config.sensor_snr_mode} total-clean reference power / GLOBAL event measurement-noise power); baseline shares event-calibrated gain'),
+            effective_target_snr_db=None if mixed_units else power_snr(fg_sensor,nuisance),
+            effective_target_global_snr_db=None if mixed_units else power_snr(fg_sensor,nuisance),
+            effective_target_active_snr_db=None if mixed_units else active_reference_snr,
+            effective_target_active_window_snr_db=None if mixed_units else power_snr(fg_sensor[:,target_window],nuisance[:,target_window]),
+            effective_target_event_snr_db=None if mixed_units else power_snr(fg_sensor[:,target_window],nuisance[:,target_window]),
+            effective_target_snr_definition='foreground sensor / (projected source background + measurement noise)',
+            effective_target_event_mask_rule='foreground GFP >= quantile(sensor_snr_clip_quantile); ties included',
+            target_activity_mask_rule='foreground GFP >= quantile(sensor_snr_clip_quantile); ties included',
+            target_activity_threshold=None if mixed_units else target_threshold,
+            target_activity_samples=None if mixed_units else int(target_window.sum()),
+            sample_schema='esi-sample-v1')
+        source_unit=meta.get('source_units',meta.get('amplitude_unit','relative_per_vertex_activity'))
+        sensor_unit=config.sensor_units if config.amplitude_mode=='physical' else 'projected_relative_model_units'
+        meta['array_units']=dict(source_foreground=source_unit,source_background=source_unit,
+            source_total=source_unit,source=source_unit,sensor=sensor_unit,baseline_sensor=sensor_unit)
+        total=source.astype(np.float32,copy=False)
+        sample=dict(sensor=sensor.astype(np.float32),clean_sensor=clean.astype(np.float32),sensor_noise=noise,
+            source=total,source_total=total,source_foreground=foreground,source_background=background,
+            foreground_sensor=fg_sensor.astype(np.float32),background_sensor=bg_sensor.astype(np.float32),
+            **covariance,manifest=meta)
+        if source_components is not None:
+            sample.update(source_components)
+        try:
+            from .quality import require_sample_quality
+        except ImportError:
+            from quality import require_sample_quality
+        require_sample_quality(sample,cortex_mask=getattr(self,'cortex_mask',None),full_source=False)
+        return sample
+
+    def generate_sensor(self, config, real_sensor_noise=None, *, compute_diagnostics=True,
+                        source_components=None, noise_reader=None):
+        """Compatibility boundary; training should use generate_sample's arrays."""
+        sample=self.generate_sample(config,real_sensor_noise,compute_diagnostics=compute_diagnostics,
+                                    source_components=source_components,noise_reader=noise_reader)
+        metadata={**sample['manifest'],**{name:sample[name].tolist() for name in (
+            'baseline_sensor','noise_covariance','oracle_noise_covariance','sensor_noise_covariance')}}
+        return tuple(sample[name] for name in ('sensor','clean_sensor','sensor_noise','source_total'))+(metadata,)
 
     def manifest_only(self, config: G1SimulationConfig) -> dict[str, Any]:
-        _, _, _, _, meta = self.generate_sensor(config)
-        return meta
+        return self.generate_sample(config)['manifest']
+
+    def sample_request_identity(self, config):
+        """Fingerprint a seeded request before generation for verified resume."""
+        try:
+            from .training_recipes import asset_identity, generator_identity
+        except ImportError:
+            from Simulation_G1.training_recipes import asset_identity, generator_identity
+        config.validate_recipe()
+        assets=asset_identity(self)
+        assets['cortex_mask_sha256']=cortex_mask_metadata(self.cortex_mask,'current')['sha256']
+        resources={}
+        paths=[config.real_noise_registry]
+        for settings in (config.spectral,config.source_background_spectral):
+            paths.extend(settings.get(key) for key in ('basis_path','network_path'))
+        for value in filter(None,paths):
+            path=Path(value).resolve()
+            with path.open('rb') as handle:
+                resources[str(path)]=hashlib.file_digest(handle,'sha256').hexdigest()
+        if config.real_noise_registry:
+            try:
+                from .real_noise import load_noise_registry
+            except ImportError:
+                from real_noise import load_noise_registry
+            registry=load_noise_registry(config.real_noise_registry)
+            records=[row for row in registry['records'] if row['record_id']==config.real_noise_record_id]
+            if len(records)!=1:
+                raise ValueError('Unknown registered noise record for saved sample')
+            record=records[0]
+            path=Path(record['path']).resolve()
+            with path.open('rb') as handle:
+                actual=hashlib.file_digest(handle,'sha256').hexdigest()
+            if actual!=record['file_sha256']:
+                raise ValueError('Registered noise file checksum changed before save/resume')
+            resources[str(path)]=actual
+        return dict(config=_json_safe(asdict(config)),assets=assets,generator=generator_identity(),resources=resources)
 
     def save_sample(
         self,
@@ -1010,44 +1384,61 @@ class G1SourceSimulator:
         save_clean_sensor: bool = False,
         save_sensor_noise: bool = True,
         save_source: bool = False,
+        save_components: bool = False,
+        resume: bool = False,
     ) -> dict[str, Any]:
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        sensor, clean, noise, source, manifest = self.generate_sensor(config, real_sensor_noise=real_sensor_noise)
-
-        sample_id = config.sample_id
-        covariance_path = output_dir / f"{sample_id}_noise_covariance.npz"
-        np.savez_compressed(covariance_path, **{
-            key: np.asarray(manifest.pop(key), dtype=np.float32 if key == "baseline_sensor" else np.float64)
-            for key in ("baseline_sensor", "noise_covariance", "oracle_noise_covariance", "sensor_noise_covariance")})
-        manifest["noise_covariance_file"] = covariance_path.name
+        try:
+            from .sample_io import save_sample_directory, verified_sample
+        except ImportError:
+            from sample_io import save_sample_directory, verified_sample
+        identity=self.sample_request_identity(config)
+        identity['outputs']=dict(sensor=save_sensor,clean_sensor=save_clean_sensor,
+            sensor_noise=save_sensor_noise,source=save_source,components=save_components)
+        if real_sensor_noise is not None:
+            array=np.ascontiguousarray(real_sensor_noise)
+            identity['bare_noise']=dict(shape=list(array.shape),dtype=array.dtype.str,
+                                       sha256=hashlib.sha256(array).hexdigest())
+        if resume:
+            if config.random_seed is None and config.component_seeds is None:
+                raise ValueError('Verified resume requires explicit sample/component seeds')
+            existing=verified_sample(output_dir,config.sample_id,identity)
+            if existing is not None:
+                return existing
+        elif (Path(output_dir)/config.sample_id).exists():
+            raise FileExistsError('Sample already exists; explicit verified resume is required')
+        has_residual = bool(config.multiscale.get('fraction', 0) or config.source_background_multiscale.get('fraction', 0))
+        components = {} if save_components or (save_source and has_residual) else None
+        sample = self.generate_sample(
+            config, real_sensor_noise=real_sensor_noise, source_components=components)
+        manifest=sample['manifest']
+        filename=f'{config.sample_id}_data.npz'
+        payload={key:sample[key] for key in ('baseline_sensor','noise_covariance',
+                                           'oracle_noise_covariance','sensor_noise_covariance')}
+        manifest['noise_covariance_file']=filename
         if save_sensor:
-            path = output_dir / f"{sample_id}_sensor.npz"
-            np.savez_compressed(path, sensor=sensor)
-            manifest["sensor_data"] = path.name
+            payload['sensor']=sample['sensor']
+            manifest['sensor_data']=filename
         if save_clean_sensor:
-            path = output_dir / f"{sample_id}_sensor_clean.npz"
-            np.savez_compressed(path, sensor_clean=clean)
-            manifest["sensor_clean"] = path.name
+            payload.update({key:sample[key] for key in ('clean_sensor','foreground_sensor','background_sensor')})
+            manifest['sensor_clean']=filename
         if save_sensor_noise:
-            path = output_dir / f"{sample_id}_sensor_noise.npz"
-            np.savez_compressed(path, sensor_noise=noise)
-            manifest["sensor_noise"] = path.name
+            payload['sensor_noise']=sample['sensor_noise']
+            manifest['sensor_noise']=filename
         if save_source:
-            path = output_dir / f"{sample_id}_source.npz"
-            np.savez_compressed(path, source=source)
-            manifest["source_truth"] = path.name
-
-        manifest_path = output_dir / f"{sample_id}_manifest.json"
-        manifest["manifest"] = manifest_path.name
-        manifest_path.write_text(json.dumps(_json_safe(manifest), indent=2), encoding="utf-8")
-        return manifest
+            payload.update({key:sample[key] for key in ('source_total','source_foreground','source_background')})
+            manifest['source_truth']=filename
+        if components:
+            payload.update(components)
+            manifest['source_components_file'] = filename
+            manifest['source_component_keys'] = sorted(components)
+        return save_sample_directory(output_dir,config.sample_id,payload,manifest,
+                                     request_identity=identity,resume=resume)
 
     def _resolve_spatial_patches(self, config: G1SimulationConfig, rng: np.random.Generator):
         """Pack complete patches; never silently crop a source to remove overlap."""
         config.validate_recipe()
         if (isinstance(config.n_patch, bool) or not isinstance(config.n_patch, (int, np.integer))
-                or not 1 <= config.n_patch <= self.n_sources):
+                or not 1 <= config.n_patch <= int(self.cortex_mask.sum())):
             raise ValueError("n_patch must be a positive integer within the mesh size")
         areas = _as_list(config.patch_area_mm2, config.n_patch)
         decays = _as_list(config.decay_mm, config.n_patch)
@@ -1057,7 +1448,7 @@ class G1SourceSimulator:
             raise ValueError("Patch decay must be finite and nonnegative")
         if not np.isfinite(config.min_seed_distance_mm) or config.min_seed_distance_mm < 0:
             raise ValueError("min_seed_distance_mm must be finite and nonnegative")
-        if sum(areas) > self.vertex_area_coord2.sum() * self.coord_to_mm**2:
+        if sum(areas) > self.vertex_area_coord2[self.cortex_mask].sum() * self.coord_to_mm**2:
             raise ValueError("Requested patch area exceeds the available mesh area")
         if config.patch_vertices is not None and config.seed_vertices is None:
             raise ValueError("patch_vertices requires explicit seed_vertices")
@@ -1067,8 +1458,10 @@ class G1SourceSimulator:
                     or np.any((seeds < 0) | (seeds >= self.n_sources))
                     or len(np.unique(seeds)) != config.n_patch):
                 raise ValueError("seed_vertices must contain n_patch unique valid integer vertices")
+            if not self.cortex_mask[seeds].all():
+                raise ValueError("seed_vertices contains vertices excluded by the cortex mask")
             if config.patch_vertices is None:
-                patches, weights = self._build_spatial_patches(seeds, areas, decays)
+                patches, weights = self._build_spatial_patches(seeds, areas, decays, config.patch_geometry)
             else:
                 if not isinstance(config.patch_vertices, list) or len(config.patch_vertices) != config.n_patch:
                     raise ValueError("patch_vertices must contain n_patch support lists")
@@ -1079,11 +1472,13 @@ class G1SourceSimulator:
                             or np.any((support < 0) | (support >= self.n_sources))
                             or len(np.unique(support)) != support.size):
                         raise ValueError("patch_vertices supports must contain unique valid integer vertices")
+                    if not self.cortex_mask[support].all():
+                        raise ValueError("patch_vertices contains vertices excluded by the cortex mask")
                     if seed not in support or patch_hop_order(support, int(seed), self.vert_conn) is None:
                         raise ValueError("Each patch_vertices support must be connected and contain its seed")
                     if self.vertex_area_coord2[support].sum() * self.coord_to_mm**2 + 1e-9 < area:
                         raise ValueError("Stored patch_vertices area is smaller than requested patch area")
-                    distances = np.linalg.norm(self.vertices[support] - self.vertices[seed], axis=1) * self.coord_to_mm
+                    distances = self._patch_distances(int(seed), support, config.patch_geometry)
                     patches.append(support)
                     weights.append(gaussian_weights(distances, decay).astype(np.float32))
                 validate_disjoint_supports(patches)
@@ -1093,16 +1488,20 @@ class G1SourceSimulator:
         for _ in range(8):
             seeds = np.empty(config.n_patch, dtype=int)
             patches = [None] * config.n_patch
-            valid = np.ones(self.n_sources, dtype=bool)
+            weights = [None] * config.n_patch
+            valid = self.cortex_mask.copy()
             occupied = np.zeros(self.n_sources, dtype=bool)
             for index in np.argsort(-np.asarray(areas), kind="stable"):
                 for seed in rng.permutation(np.flatnonzero(valid))[:256]:
-                    patch = grow_patch_by_area(int(seed), self.vert_conn, self.vertex_area_coord2,
-                                               areas[index], self.coord_to_mm)
+                    try:
+                        patch, distances = self._grow_spatial_patch(int(seed), areas[index], config.patch_geometry)
+                    except PatchCapacityError:
+                        continue
                     actual_area = self.vertex_area_coord2[patch].sum() * self.coord_to_mm**2
                     if occupied[patch].any() or actual_area + 1e-9 < areas[index]:
                         continue
                     seeds[index], patches[index] = seed, patch
+                    weights[index] = gaussian_weights(distances, decays[index]).astype(np.float32)
                     occupied[patch] = True
                     distance = np.linalg.norm(self.vertices-self.vertices[seed], axis=1)*self.coord_to_mm
                     valid &= (distance >= config.min_seed_distance_mm) & ~occupied
@@ -1110,14 +1509,11 @@ class G1SourceSimulator:
                 else:
                     break
             else:
-                weights = [gaussian_weights(np.linalg.norm(self.vertices[p]-self.vertices[s], axis=1)
-                           *self.coord_to_mm, d).astype(np.float32)
-                           for p, s, d in zip(patches, seeds, decays)]
                 return seeds, patches, weights
         raise RuntimeError("Could not pack disjoint full patches within the sampling budget; reduce patch area/count or seed spacing")
 
     def sample_spaced_vertices(self, n_vertices: int, min_distance_mm: float, rng: np.random.Generator) -> Array:
-        valid = np.ones(self.n_sources, dtype=bool)
+        valid = self.cortex_mask.copy()
         selected: list[int] = []
         attempts = 0
         while len(selected) < n_vertices and attempts < 10000:
@@ -1139,19 +1535,38 @@ class G1SourceSimulator:
         seeds: Array,
         patch_areas_mm2: list[float],
         decays_mm: list[float],
+        geometry: str = 'legacy_bfs',
     ) -> tuple[list[Array], list[Array]]:
         patches = []
         weights = []
         for seed, area_mm2, decay_mm in zip(seeds, patch_areas_mm2, decays_mm):
-            patch = grow_patch_by_area(int(seed), self.vert_conn, self.vertex_area_coord2, area_mm2, self.coord_to_mm)
+            patch, dists_mm = self._grow_spatial_patch(int(seed), area_mm2, geometry)
             if self.vertex_area_coord2[patch].sum()*self.coord_to_mm**2 + 1e-9 < area_mm2:
                 raise ValueError(f"Requested patch area cannot fit seed {seed}'s connected mesh component")
-            dists_mm = np.linalg.norm(self.vertices[patch] - self.vertices[int(seed)], axis=1) * self.coord_to_mm
             weight = gaussian_weights(dists_mm, decay_mm)
             patches.append(patch)
             weights.append(weight.astype(np.float32))
         validate_disjoint_supports(patches)
         return patches, weights
+
+    def _patch_distances(self, seed, support, geometry):
+        if geometry == 'geodesic':
+            # Explicit supports may use paths outside the support, but never
+            # outside the allowed cortical component or through a masked vertex.
+            return cached_geodesic_distances(self.geodesic_graph,seed,
+                cache=self._geodesic_distance_cache)[support]
+        if geometry != 'legacy_bfs':
+            raise ValueError('patch_geometry must be geodesic or legacy_bfs')
+        return np.linalg.norm(self.vertices[support]-self.vertices[seed], axis=1)*self.coord_to_mm
+
+    def _grow_spatial_patch(self, seed, area_mm2, geometry):
+        if geometry == 'geodesic':
+            patch, distances, _ = grow_geodesic_patch(seed, self.geodesic_graph,
+                self.vertex_area_coord2*self.coord_to_mm**2, area_mm2)
+            return patch, distances
+        patch = grow_patch_by_area(seed, self.patch_vert_conn, self.vertex_area_coord2,
+                                   area_mm2, self.coord_to_mm)
+        return patch, self._patch_distances(seed, patch, geometry)
 
     def _build_roi_signals(
         self,
@@ -1259,6 +1674,7 @@ class G1SourceSimulator:
         else:
             raise ValueError(f"Unsupported source_background_type: {background_type}")
         mix = rng.standard_normal((self.n_sources, rank))
+        mix[~self.cortex_mask]=0
         background = mix @ bases
         event = background[:, baseline_samples:]
         event -= event.mean(axis=1, keepdims=True)
@@ -1511,6 +1927,18 @@ class G1SourceSimulator:
                 "n_sources": self.n_sources,
                 "n_sensors": self.n_sensors,
                 "coordinate_unit_scale_to_mm": self.coord_to_mm,
+                "cortex_mask": dict(self.cortex_mask_metadata),
+                "source_representation": "per_vertex_activity",
+                "amplitude_unit": "relative_model_activity",
+                "patch_growth_metric": ('mesh_edge_geodesic_mm' if config.patch_geometry == 'geodesic'
+                                        else 'graph_hops_bfs'),
+                "spatial_decay_metric": ('mesh_edge_geodesic_mm' if config.patch_geometry == 'geodesic'
+                                         else 'euclidean_mm'),
+                "seed_spacing_metric": "euclidean_mm",
+                "geodesic_distance_scope": ('masked_cortical_component_including_outside_explicit_support'
+                                             if config.patch_geometry == 'geodesic' else None),
+                "geodesic_approximation": ('shortest_path_along_mesh_edges_not_continuous_surface'
+                                            if config.patch_geometry == 'geodesic' else None),
                 "seed_vertices": seeds.tolist(),
                 "active_vertices": sorted({int(v) for patch in patch_indices for v in patch.tolist()}),
                 "patches": [
@@ -1526,6 +1954,19 @@ class G1SourceSimulator:
                 "source_background_saved": source_background is not None,
             }
         )
+        targets = _as_list(config.patch_area_mm2, len(seeds))
+        for details, seed, support, target in zip(manifest['patches'], seeds, patch_indices, targets):
+            areas = self.vertex_area_coord2[support]*self.coord_to_mm**2
+            details['requested_area_mm2'] = target
+            details['area_overshoot_mm2'] = max(0., float(areas.sum())-target)
+            if config.patch_geometry == 'geodesic':
+                distances = self._patch_distances(int(seed), support, 'geodesic')
+                radius = float(distances.max())
+                details['geodesic_radius_mm'] = radius
+                details['geodesic_tie_policy'] = ('explicit_support' if config.patch_vertices is not None
+                                                  else 'complete_equal_distance_shell')
+                details['final_shell_area_mm2'] = (None if config.patch_vertices is not None else
+                    float(areas[np.isclose(distances, radius, rtol=1e-12, atol=1e-10)].sum()))
         if source_background is not None:
             manifest["source_background_power"] = float(np.mean(source_background**2))
         return _json_safe(manifest)
@@ -1575,11 +2016,6 @@ class G1ScenarioSampler:
             coupling = self.rng.uniform(-0.2, 0.2, n_patch * n_patch).round(3).tolist()
         else:
             coupling = 0.0
-        background_choice = self.rng.choice(
-            ["pink", "eegsourcesim_resting", "alpha", "powerlaw", "specparam", "synaptic", "white", "none"],
-            p=[0.18, 0.22, 0.15, 0.14, 0.12, 0.08, 0.05, 0.06],
-        )
-        background_type = None if background_choice == "none" else str(background_choice)
         return G1SimulationConfig(
             sample_id=sample_id,
             template_id=template_id,
@@ -1591,14 +2027,9 @@ class G1ScenarioSampler:
             connectivity_mode=mode,
             coupling=coupling,
             waveform_params=waveform_params,
-            source_background_type=background_type,
-            source_snr_db=float(self.rng.uniform(20.0, 35.0)),
-            sensor_noise_type=str(
-                self.rng.choice(
-                    ["white", "pink", "powerlaw", "specparam_resting", "mixed", "eegsourcesim_resting"],
-                    p=[0.16, 0.18, 0.18, 0.18, 0.12, 0.18],
-                )
-            ),
+            source_background_type=None,
+            source_snr_db=None,
+            sensor_noise_type='iid_white',
             sensor_snr_db=float(self.rng.uniform(*self.snr_db_range)),
             random_seed=int(self.rng.integers(1, 2**31 - 1)),
         )
@@ -1768,8 +2199,6 @@ class G1DifficultyScenarioSampler(G1ScenarioSampler):
             "patch_area_mm2_range": (200.0, 500.0),
             "min_seed_distance_mm": 30.0,
             "connectivity_modes": ["independent"],
-            "sensor_noise_types": ["white", "pink", "powerlaw"],
-            "source_background_types": [None, "pink", "powerlaw"],
         },
         "medium": {
             "snr_db_range": (8.0, 18.0),
@@ -1777,8 +2206,6 @@ class G1DifficultyScenarioSampler(G1ScenarioSampler):
             "patch_area_mm2_range": (100.0, 350.0),
             "min_seed_distance_mm": 25.0,
             "connectivity_modes": ["independent", "correlated"],
-            "sensor_noise_types": ["white", "pink", "powerlaw", "specparam_resting", "eegsourcesim_resting"],
-            "source_background_types": [None, "pink", "powerlaw", "specparam", "alpha", "eegsourcesim_resting"],
         },
         "hard": {
             "snr_db_range": (0.0, 12.0),
@@ -1786,8 +2213,6 @@ class G1DifficultyScenarioSampler(G1ScenarioSampler):
             "patch_area_mm2_range": (40.0, 250.0),
             "min_seed_distance_mm": 20.0,
             "connectivity_modes": ["independent", "correlated", "causal"],
-            "sensor_noise_types": ["pink", "powerlaw", "specparam_resting", "mixed", "eegsourcesim_resting"],
-            "source_background_types": ["pink", "powerlaw", "specparam", "synaptic", "alpha", "eegsourcesim_resting", "white"],
         },
         "extreme": {
             "snr_db_range": (-5.0, 8.0),
@@ -1795,8 +2220,6 @@ class G1DifficultyScenarioSampler(G1ScenarioSampler):
             "patch_area_mm2_range": (20.0, 180.0),
             "min_seed_distance_mm": 15.0,
             "connectivity_modes": ["correlated", "causal"],
-            "sensor_noise_types": ["mixed", "powerlaw", "specparam_resting", "eegsourcesim_resting"],
-            "source_background_types": ["pink", "powerlaw", "specparam", "synaptic", "eegsourcesim_resting", "alpha"],
         },
     }
 
@@ -1828,9 +2251,6 @@ class G1DifficultyScenarioSampler(G1ScenarioSampler):
         mode = str(self.rng.choice(preset["connectivity_modes"]))
         config.connectivity_mode = mode
         config.min_seed_distance_mm = float(preset["min_seed_distance_mm"])
-        config.sensor_noise_type = str(self.rng.choice(preset["sensor_noise_types"]))
-        background = self.rng.choice(["none" if v is None else v for v in preset["source_background_types"]])
-        config.source_background_type = None if background == "none" else str(background)
         if mode == "independent":
             config.coupling = 0.0
         elif mode == "correlated":

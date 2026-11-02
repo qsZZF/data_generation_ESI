@@ -11,6 +11,8 @@
 G1 现支持皮层 LBO / LBO＋网络图的 rest、ERP、ERSP 生成，以及小规模真实 EEG 特征对照。
 调用和候选配置的适用范围见 [G1 使用指南](Simulation_G1/G1_usage_guide.md)。
 
+真实 MEG／高密度 EEG 前向模型的零空间实验与复现命令见 [NULLSPACE_STUDY.md](NULLSPACE_STUDY.md)。
+
 每个新生成的 sensor 样本附带独立 baseline 和由它估计的默认噪声协方差；活动段成分真值
 只作为 `oracle_noise_covariance` 诊断字段。详见 [baseline 与白化说明](NMM_USAGE.md#per-sample-baseline-covariance-for-esi-whitening)。
 
@@ -81,3 +83,17 @@ smoke检查会明确跳过。缺少Python依赖时，应先安装对应依赖，
 
 G4中的外部代码及区域表来源保留在`Simulation_G4/NEURODYN_NOTICE`，对应
 Apache-2.0文本为`Simulation_G4/NEURODYN_LICENSE`；不据此替整个项目另行指定许可证。
+
+Inverse-method comparison, anatomical support dictionaries, and nullspace dynamics: [NULLSPACE_METHODS_STUDY.md](NULLSPACE_METHODS_STUDY.md).
+
+Correctness fixes, cortical resting backgrounds, covariance shrinkage and migration: [release guide](GENERATION_REALISM_UPDATE.md).
+
+Geodesic patches, explicit amplitude units and optional sample labels: [interface guide](GEOMETRY_UNITS_OBSERVABILITY.md).
+
+Optional multiscale fields and registered measured sensor noise: [usage and validation](MULTISCALE_REAL_NOISE.md).
+
+Current named-array training API, active-window SNR and transactional saving: [production interface](PRODUCTION_SAMPLE_INTERFACE.md).
+
+Data-guided G4 regional-bank export and measured ancestry: [G4 interface](G4_UNIFIED_EXPORT.md).
+
+Current production defaults and QC: [usage](QUALITY_AND_TRAINING_POLICY.md), [sample audit and measured-noise comparison](OPTIMIZATION_RESULTS.md).

@@ -11,12 +11,25 @@ from scipy.signal import welch
 
 from Simulation_G1.geometry import compute_basis, load_basis, project_maps, save_basis
 from Simulation_G1.g1_simulation_core import G1SimulationConfig
-from Simulation_G1.spectral import _fft_process, generate_coefficients
+from Simulation_G1.spectral import _fft_process, generate_coefficients, generate_rest_background
 from Simulation_G1.training_recipes import generator_identity
 from test_spatial_patches import grid_simulator
 
 
 class ModalGenerationTests(unittest.TestCase):
+    def test_prechange_numeric_fixtures(self):
+        # Captured before spatial-randomization edits, rounded to avoid FFT last-bit drift.
+        expected = {
+            'rest': 'de46c24368db158899adfd9cc5b4c8dd93baa1eabbae02ca9226a88f32579121',
+            'erp': 'f0a5e87f6d05f6268258b0f1fdb8ebe1b04fab7e7d084d72d48f7263244d8b71',
+            'ersp': '4f949013d95999329e020ebfec16535fb4330a09332db3061c15ff6038863282',
+        }
+        for scenario, digest in expected.items():
+            result = self.generate(dict(scenario=scenario, erp_spatial_mode='fixed'))
+            data = b''.join(np.round(result[key], 10).astype('<f8').tobytes()
+                            for key in ('foreground', 'background', 'baseline_background'))
+            self.assertEqual(hashlib.sha256(data).hexdigest(), digest)
+
     def test_broad_erp_cannot_leak_into_prestimulus_baseline(self):
         settings=dict(scenario='erp',event_onset_s=0.,erp_latency_s=.1,erp_width_s=.5)
         out=generate_coefficients(self.bundle,settings,srate=128,time_window=(-2,3),
@@ -57,7 +70,7 @@ class ModalGenerationTests(unittest.TestCase):
         self.assertLess(smooth_ratio, rough_ratio / 10)
 
     def test_erp_is_phase_locked_and_jitter_changes_latency(self):
-        settings = dict(scenario='erp', erp_latency_jitter_s=0)
+        settings = dict(scenario='erp', erp_latency_jitter_s=0, erp_spatial_mode='fixed')
         first, second = self.generate(settings, seed=1), self.generate(settings, seed=2)
         np.testing.assert_array_equal(first['foreground'], second['foreground'])
         self.assertFalse(np.array_equal(first['background'], second['background']))
@@ -67,6 +80,42 @@ class ModalGenerationTests(unittest.TestCase):
         for result in (first, second):
             peak = np.linalg.norm(result['foreground'], axis=0).argmax() / 128
             self.assertAlmostEqual(peak, result['metadata']['erp_latency_s'], delta=1 / 128)
+
+    def test_random_erp_changes_space_without_changing_temporal_draws(self):
+        settings = dict(scenario='erp', erp_latency_jitter_s=.01)
+        first = self.generate(settings, spatial_rng=np.random.default_rng(10))
+        second = self.generate(settings, spatial_rng=np.random.default_rng(11))
+        repeated = self.generate(settings, spatial_rng=np.random.default_rng(10))
+        fixed = self.generate({**settings, 'erp_spatial_mode': 'fixed'})
+        self.assertFalse(np.array_equal(first['foreground'], second['foreground']))
+        np.testing.assert_array_equal(first['foreground'], repeated['foreground'])
+        for result in (second, fixed):
+            for key in ('background', 'baseline_background'):
+                np.testing.assert_array_equal(first[key], result[key])
+            np.testing.assert_allclose(np.linalg.norm(first['foreground'], axis=0),
+                                       np.linalg.norm(result['foreground'], axis=0), atol=1e-14)
+            self.assertEqual(first['metadata']['erp_latency_s'], result['metadata']['erp_latency_s'])
+
+    def test_default_erp_randomizes_modal_and_network_patterns(self):
+        for fraction in (0., 1.):
+            settings = dict(scenario='erp', network_fraction=fraction, spatial_length_mm=0)
+            maps = np.eye(16)
+            patterns = [self.generate(settings, seed=seed, network_coefficients=maps)['foreground'][:, 40]
+                        for seed in range(20)]
+            # This fixture has sixteen independent directions. One-dimensional
+            # assets are allowed and need not satisfy a diversity threshold.
+            self.assertEqual(np.linalg.matrix_rank(patterns), 16)
+        one_mode = self.generate(dict(scenario='erp', n_modes=1))
+        self.assertTrue(np.isfinite(one_mode['foreground']).all())
+        self.assertEqual(one_mode['metadata']['erp_spatial_mode'], 'random')
+        self.assertIsInstance(one_mode['metadata']['erp_spatial_seed'], int)
+
+    def test_spatial_rng_does_not_change_rest_or_ersp(self):
+        for scenario in ('rest', 'ersp'):
+            first = self.generate(dict(scenario=scenario))
+            second = self.generate(dict(scenario=scenario), spatial_rng=np.random.default_rng(901))
+            for key in ('foreground', 'background', 'baseline_background'):
+                np.testing.assert_array_equal(first[key], second[key])
 
     def test_ersp_is_only_modulation_delta_with_unchanged_baseline(self):
         unchanged = self.generate(dict(scenario='ersp', ersp_depth=0))
@@ -142,6 +191,7 @@ class ModalGenerationTests(unittest.TestCase):
 
     def test_invalid_settings_and_timing_rejected(self):
         for settings in ({'unknown': 1}, {'spatial_length_mm': -1}, {'scenario': 'unknown'},
+                         {'erp_spatial_mode': 'invalid'},
                          {'n_modes': 99}, {'alpha_hz': 70}, {'ersp_depth': -2},
                          {'beta_power_ratio': -1}, {'beta_width_hz': 0}, {'ersp_beta_depth': -2},
                          {'beta_hz': 70, 'beta_power_ratio': 1},
@@ -152,6 +202,39 @@ class ModalGenerationTests(unittest.TestCase):
 
 
 class SpectralSourceIntegrationTests(unittest.TestCase):
+    def test_high_level_erp_uses_recorded_independent_spatial_stream(self):
+        streams = dict(spatial=11, waveform=8, gain=9, background=10, sensor=12)
+        config = replace(self.config, component_seeds=streams, normalize_source=False,
+                         spectral={**self.config.spectral, 'scenario': 'erp'})
+        from Simulation_G1.spectral import generate_source_components
+        first = generate_source_components(self.sim, config)
+        second = generate_source_components(self.sim, replace(config,
+            component_seeds={**streams, 'spatial': 19}))
+        for position in (2, 3):
+            # Event subtraction is float32; baseline is independently represented.
+            np.testing.assert_allclose(first[position], second[position], atol=5e-8)
+        self.assertFalse(np.array_equal(first[0], second[0]))
+        self.assertEqual(first[1]['erp_spatial_seed'], 11)
+        fallback = generate_source_components(self.sim, replace(config, component_seeds=None))
+        self.assertIsInstance(fallback[1]['erp_spatial_seed'], int)
+        self.assertNotEqual(fallback[1]['erp_spatial_seed'], config.random_seed)
+
+    def test_rest_background_retains_baseline_and_matches_stationary_erp_background(self):
+        settings = self.config.spectral
+        event, baseline, metadata = generate_rest_background(self.sim, settings,
+            srate=128, time_window=(0, 1), baseline_duration_s=2, seed=8)
+        modal = generate_coefficients(self.bundle, dict(scenario='erp'), srate=128,
+            time_window=(0, 1), baseline_duration_s=2, rng=np.random.default_rng(8))
+        np.testing.assert_allclose(event, self.bundle['basis'] @ modal['background'])
+        np.testing.assert_allclose(baseline, self.bundle['basis'] @ modal['baseline_background'])
+        self.assertGreater(np.linalg.norm(baseline), 0)
+        self.assertEqual(baseline.shape, (25, 256))
+        self.assertEqual(metadata['source_representation'], 'per_vertex_activity')
+        self.assertEqual(metadata['source_normalization_scale'], 1.)
+        with self.assertRaisesRegex(ValueError, 'scenario=rest'):
+            generate_rest_background(self.sim, {**settings, 'scenario': 'erp'},
+                srate=128, time_window=(0, 1), baseline_duration_s=2, seed=8)
+
     def test_zero_evoked_target_does_not_label_background_as_active(self):
         config=replace(self.config,spectral={**self.config.spectral,'scenario':'erp','erp_amplitude':0.})
         source,meta=self.sim.generate_source(config)

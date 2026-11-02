@@ -45,3 +45,7 @@ network 的顶点顺序与当前 Brainstorm 网格对应，但体积采样的坐
 - AAL TVB传导长度来自区域质心距离代理，不是实测纤维长度。
 - G3是TVB单分支JR，G4是双时间尺度JR；不能直接混用参数文件。
 - 真实EEG、区域参数、仿真源和训练权重是不同资产，不能由复制代码自动补齐。
+
+## Optional realism resources
+
+The cortical-rest example requires a matching LBO basis; update its basis_path after preparing local geometry. New membership anatomy is derived separately from the existing AAL bundle; it is not bundled here. Use the release guide commands and --vertex-leadfield when the supplied vertex forward is outside this collection. Legacy NeuroVault rebuilding additionally uses its original optional wordcloud/imaging environment; no new packages were installed for this release and no large clustering run was executed.

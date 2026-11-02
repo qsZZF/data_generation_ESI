@@ -1,5 +1,23 @@
 # G4: data-guided NMM simulation
 
+Current ESI defaults use the cortical **membership** projection and independent
+regional drive at 256 Hz. The verified G4-to-unified-bank exporter and provenance
+contract are described in [G4_UNIFIED_EXPORT.md](../G4_UNIFIED_EXPORT.md).
+The older pilot uses a different bank/model configuration; do not reuse its
+checkpoints as if they were trained with these defaults.
+
+`--record-observability` optionally records temporally filtered regional PSP
+subspace labels for training and reconstructed draws. These use the fitted
+observation gain when applicable and explicitly do not claim full-vertex null
+fractions. See [the unit/observability guide](../GEOMETRY_UNITS_OBSERVABILITY.md).
+
+New source banks default to independent regional drive; use `--drive-mode shared`
+for the previous common input, or `--drive-mode mixed --drive-correlation 0.15`.
+The low-level simulator preserves shared defaults for explicit legacy replay.
+Drive identity is carried through checkpoints and reconstruction; old banks are
+not silently relabeled. Optional baseline OAS and a separate AAL membership
+bundle are described in [the update guide](../GENERATION_REALISM_UPDATE.md).
+
 G4 learns an inverse from synthetic EEG to neural-mass parameters, applies it to
 measured EEG, and generates fresh stochastic source signals from those estimates.
 Measured EEG supplies the observation domain and reconstruction target; it does

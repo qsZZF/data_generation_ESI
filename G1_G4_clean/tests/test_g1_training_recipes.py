@@ -14,6 +14,22 @@ from test_spatial_patches import grid_simulator
 
 
 class TrainingRecipeTests(unittest.TestCase):
+    def test_physical_recipe_keeps_fixed_noise_and_geometry(self):
+        amplitude = dict(amplitude_mode='physical', foreground_peak_am=1e-9,
+                         leadfield_source_unit='A*m', sensor_units='V', sensor_noise_std=1e-6)
+        self.build(amplitude_settings=amplitude, record_observability=True, patch_geometry='legacy_bfs')
+        dataset = RecipeDataset(self.root/'set', self.sim, split=None)
+        for index in (0, len(dataset)-1):
+            config, _ = dataset.recipe(index)
+            self.assertEqual(config.patch_geometry, 'legacy_bfs')
+            self.assertIsNone(config.sensor_snr_db)
+            self.assertFalse(config.normalize_source)
+            self.assertIsNone(config.sensor_noise_peak_ratio)
+            config.validate_recipe()
+        sample = dataset[0]
+        source, meta = sample['source_total'], sample['manifest']
+        self.assertEqual(meta['amplitude_unit'], 'A*m')
+        self.assertIn('observability', meta)
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -70,11 +86,13 @@ class TrainingRecipeTests(unittest.TestCase):
         first = dataset[0]
         dataset[1]
         repeated = dataset[0]
-        for actual, expected in zip(first[:4], repeated[:4]):
-            np.testing.assert_array_equal(actual, expected)
-        self.assertEqual(first[4], repeated[4])
-        self.assertNotIn('source_psd_summary', first[4])
-        self.assertTrue(np.isfinite(first[0]).all())
+        for key in ('sensor', 'clean_sensor', 'sensor_noise', 'source_foreground', 'source_background', 'source_total',
+                    'baseline_sensor', 'noise_covariance'):
+            np.testing.assert_array_equal(first[key], repeated[key])
+        self.assertEqual(first['manifest'], repeated['manifest'])
+        self.assertNotIn('source_psd_summary', first['manifest'])
+        self.assertTrue(np.isfinite(first['sensor']).all())
+        np.testing.assert_allclose(first['source_foreground']+first['source_background'], first['source_total'])
         for invalid in (-1, len(dataset), True, 1.5):
             with self.assertRaises(IndexError):
                 dataset.recipe(invalid)
@@ -119,6 +137,21 @@ class TrainingRecipeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'srate'):
             build_recipe_dataset(self.sim,self.root/'bad',srate=50)
         self.assertFalse((self.root/'bad').exists())
+
+    def test_new_schema_active_snr_and_explicit_legacy_modes(self):
+        manifest = self.build('current')
+        self.assertEqual(manifest['schema'], 'g1-recipes-v4')
+        self.assertEqual(manifest['base_config']['sensor_snr_mode'], 'active_rms')
+        for schema in ('g1-recipes-v1', 'g1-recipes-v2', 'g1-recipes-v3'):
+            manifest = self.build(schema, sensor_snr_mode='global_rms')
+            # Simulate an existing-version manifest while retaining current
+            # frozen code identity; readers must respect its stored SNR mode.
+            manifest['schema'] = schema
+            (self.root/schema/'dataset.json').write_text(json.dumps(manifest), encoding='utf-8')
+            self.assertEqual(manifest['base_config']['sensor_snr_mode'], 'global_rms')
+            config, _ = RecipeDataset(self.root/schema, self.sim).recipe(0)
+            self.assertEqual(config.sensor_snr_mode, 'global_rms')
+        self.assertIn('sample_io.py', generator_identity()['files'])
 
 
 if __name__ == '__main__':

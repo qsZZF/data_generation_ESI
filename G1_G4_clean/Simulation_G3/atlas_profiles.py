@@ -9,7 +9,7 @@ from scipy.sparse import load_npz
 from Simulation_G2.nmm_bank import projection_hash
 
 ROOT = Path(__file__).resolve().parents[1]
-ATLAS_CHOICES = ("legacy998", "aal78")
+ATLAS_CHOICES = ("legacy998", "aal78", "aal78_membership")
 
 
 def get_atlas_profile(name=None):
@@ -18,11 +18,14 @@ def get_atlas_profile(name=None):
                     connectivity_path=ROOT / "Simulation_G3/anatomy/connectivity_998.zip",
                     projection_path=ROOT / "Anatomy/FS_994nmm_to_20k.mat",
                     reshape_to_994=True, region_names=None)
-    if name != "aal78":
+    if name not in ("aal78", "aal78_membership"):
         raise ValueError(f"Unknown atlas {name!r}; choose from {ATLAS_CHOICES}")
-    atlas_path = ROOT / "Anatomy/G4_AAL_cortical/atlas.npz"
-    projection_path = ROOT / "Anatomy/G4_AAL_cortical/projection.npz"
-    connectivity_path = ROOT / "Anatomy/G3_AAL78_TVB/connectivity_78.zip"
+    membership = name == 'aal78_membership'
+    atlas_dir = ROOT / ('Anatomy/G4_AAL_cortical_membership' if membership else 'Anatomy/G4_AAL_cortical')
+    atlas_path = atlas_dir / 'atlas.npz'
+    projection_path = atlas_dir / 'projection.npz'
+    connectivity_path = ROOT / ('Anatomy/G3_AAL78_membership_TVB/connectivity_78.zip' if membership
+                                else 'Anatomy/G3_AAL78_TVB/connectivity_78.zip')
     metadata = load_connectivity_metadata(connectivity_path)
     if metadata is None:
         raise ValueError('Build the verified AAL bundle first: python -m Simulation_G3.prepare_aal_tvb')
@@ -32,11 +35,19 @@ def get_atlas_profile(name=None):
         raise ValueError('AAL atlas bundle differs from the connectivity build')
     if projection_hash(load_npz(projection_path)) != metadata['projection_sha256']:
         raise ValueError('AAL projection differs from the connectivity build')
+    expected_mode = 'membership' if membership else 'area_unit_sum'
+    manifest_path = atlas_dir / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
     with np.load(atlas_path, allow_pickle=False) as atlas:
         names = atlas["region_names"].tolist()
+        array_mode = str(atlas['projection_mode'].item()) if 'projection_mode' in atlas else 'area_unit_sum'
+    if (array_mode != expected_mode or manifest.get('projection_mode', 'area_unit_sum') != expected_mode
+            or metadata.get('projection_mode', 'area_unit_sum') != expected_mode):
+        raise ValueError('AAL projection mode differs from the named atlas or connectivity sidecar')
     if len(names) != 78 or len(set(names)) != 78:
         raise ValueError("Expected 78 distinct cortical AAL parcel names")
-    return dict(atlas_id="aal78_cortical_fsaverage5_regfusion", n_regions=78, n_regions_raw=78,
+    return dict(atlas_id="aal78_cortical_fsaverage5_regfusion" + ('_membership' if membership else ''),
+                projection_mode=expected_mode, n_regions=78, n_regions_raw=78,
                 connectivity_path=connectivity_path, projection_path=projection_path,
                 reshape_to_994=False, region_names=names)
 

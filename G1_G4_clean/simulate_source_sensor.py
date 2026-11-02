@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+from io import BytesIO
 import json
 import sys
 from dataclasses import asdict
@@ -22,6 +24,7 @@ if str(ROOT) not in sys.path:
 from Simulation_G1.g1_simulation_core import G1SimulationConfig, G1SourceSimulator, _json_safe, estimate_power_spectrum_summary
 from Simulation_G1.spatial import SpatialDynamicsConfig
 from Simulation_G1.noise_covariance import NOISE_ARRAY_KEYS
+from Simulation_G1.sample_io import save_sample_directory
 from Simulation_G2.g2_simulation_core import (
     G2SimulationConfig,
     G2SourceSimulator,
@@ -32,7 +35,7 @@ from Simulation_G2.g2_simulation_core import (
 )
 from Simulation_G2.nmm_bank import projection_hash, read_bank
 from Simulation_G3.g3_tvb_core import TVBSignalConfig, TVBSourceGenerator
-from Simulation_G3.atlas_profiles import get_atlas_profile, validate_atlas_connectivity
+from Simulation_G3.atlas_profiles import ATLAS_CHOICES, get_atlas_profile, validate_atlas_connectivity
 from Simulation_G3.generate_nmm_spike_reference_demo import load_nmm_spike_clip
 
 
@@ -123,7 +126,7 @@ def parse_int_list(text: str | None) -> list[int]:
 def get_projection_path(args: argparse.Namespace) -> Path:
     if args.projection_path:
         return Path(args.projection_path)
-    if args.atlas == "aal78":
+    if args.atlas in ("aal78", "aal78_membership"):
         return Path(get_atlas_profile(args.atlas)["projection_path"])
     return Path(args.anatomy_dir) / "FS_994nmm_to_20k.mat"
 
@@ -167,6 +170,10 @@ def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
     duration_s = float(args.duration_s)
     return G1SimulationConfig(
         source_model=args.g1_source_model, spectral=spectral,
+        multiscale=(json.loads(args.g1_multiscale_config.read_text(encoding='utf-8'))
+                    if args.g1_multiscale_config else {}),
+        source_background_multiscale=(json.loads(args.background_multiscale_config.read_text(encoding='utf-8'))
+                                     if args.background_multiscale_config else {}),
         sample_id=args.sample_id,
         template_id="fsaverage5",
         source_space_id="Cortex_FS_20k",
@@ -176,21 +183,34 @@ def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
         time_window=(0.0, duration_s),
         n_patch=int(args.n_active),
         patch_area_mm2=float(args.patch_area_mm2),
+        patch_geometry=args.patch_geometry,
         decay_mm=float(args.decay_mm),
         min_seed_distance_mm=float(args.min_seed_distance_mm),
         spatial=build_spatial_config(args),
         waveform_params=[G1_WAVEFORM_PRESETS[args.source_type]],
         source_background_type=args.source_background_type,
+        source_background_spectral=(json.loads(Path(args.source_background_config).read_text(encoding='utf-8'))
+                                    if args.source_background_config else {}),
         source_snr_db=args.source_snr_db,
         sensor_noise_type=args.sensor_noise_type,
+        real_noise_registry=str(args.real_noise_registry) if args.real_noise_registry else None,
+        real_noise_record_id=args.real_noise_record_id,
+        real_noise_split=args.real_noise_split,
+        allow_combined_real_source_background=args.allow_combined_real_source_background,
         sensor_snr_db=args.sensor_snr_db,
         sensor_snr_mode=args.sensor_snr_mode,
         sensor_snr_clip_quantile=args.sensor_snr_clip_quantile,
         baseline_duration_s=args.baseline_duration_s,
+        covariance_estimator=args.covariance_estimator,
         average_reference=args.average_reference,
-        normalize_source=True,
+        normalize_source=args.amplitude_mode != 'physical',
         normalize_sensor=False,
         random_seed=args.random_seed,
+        amplitude_mode=args.amplitude_mode, foreground_peak_am=args.foreground_peak_am,
+        leadfield_source_unit=args.leadfield_source_unit,
+        sensor_units=(args.sensor_units[0] if len(args.sensor_units) == 1 else args.sensor_units) if args.sensor_units else None,
+        sensor_noise_std=(args.sensor_noise_std[0] if len(args.sensor_noise_std) == 1 else args.sensor_noise_std) if args.sensor_noise_std else None,
+        record_observability=args.record_observability,
     )
 
 
@@ -200,25 +220,32 @@ def run_g1(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     anatomy_dir = Path(args.anatomy_dir)
     cortex_path = Path(args.cortex_path) if args.cortex_path else anatomy_dir / "Cortex_FS_20k.mat"
     leadfield_path = Path(args.leadfield_path) if args.leadfield_path else anatomy_dir / "Gain_20k_FS.mat"
-    cortex = load_brainstorm_cortex(cortex_path)
+    cortex = load_brainstorm_cortex(cortex_path, use_cortex_mask=args.cortex_mask)
     n_vertices = np.asarray(cortex["Vertices"]).shape[-1]
     leadfield = load_brainstorm_leadfield(leadfield_path, n_vertices=n_vertices)
-    simulator = G1SourceSimulator.from_brainstorm_cortex(leadfield, cortex)
+    channel_names = json.loads(args.channel_names.read_text(encoding='utf-8')) if args.channel_names else None
+    simulator = G1SourceSimulator.from_brainstorm_cortex(leadfield, cortex, channel_names=channel_names)
     config = build_g1_config(args)
-    sensor, clean, noise, source, manifest = simulator.generate_sensor(config)
+    sample = simulator.generate_sample(config)
+    manifest = dict(sample['manifest'])
+    arrays = {key: value for key, value in sample.items() if key != 'manifest'}
+    sensor, clean, noise = arrays['sensor'], arrays['clean_sensor'], arrays['sensor_noise']
+    source = arrays.get('source_total', arrays.get('source'))
     manifest.update({"high_level_engine": "g1", "source_type": args.source_type
                      if config.source_model == "patch" else config.spectral.get("scenario", "rest")})
-    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, None, manifest, args.plot)
+    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, None,
+                                manifest, args.plot, sample_arrays=arrays, resume=args.resume)
 
 
 def build_g2_config(args: argparse.Namespace, active_regions: list[int] | None) -> G2SimulationConfig:
     return G2SimulationConfig(
+        record_observability=args.record_observability,
         sample_id=args.sample_id,
         template_id="fsaverage5",
         source_space_id="Cortex_FS_20k",
         leadfield_id=Path(args.leadfield_path).name if args.leadfield_path else "Gain_20k_FS",
         projection_id=(get_projection_path(args).name
-                       if args.projection_path or args.atlas == "aal78" else "FS_994nmm_to_20k"),
+                       if args.projection_path or args.atlas in ("aal78", "aal78_membership") else "FS_994nmm_to_20k"),
         modality=args.modality,
         srate=float(args.srate_hz),
         time_window=(0.0, float(args.duration_s)),
@@ -234,6 +261,7 @@ def build_g2_config(args: argparse.Namespace, active_regions: list[int] | None) 
         sensor_snr_mode=args.sensor_snr_mode,
         sensor_snr_clip_quantile=args.sensor_snr_clip_quantile,
         baseline_duration_s=args.baseline_duration_s,
+        covariance_estimator=args.covariance_estimator,
         average_reference=args.average_reference,
         random_seed=args.random_seed,
         nmm_sample_id=args.nmm_sample,
@@ -264,13 +292,13 @@ def run_g2_bank(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     manifest.update({"high_level_engine": "g2", "source_type": manifest.get("nmm_state", config.nmm_state)})
     time_ms = np.arange(region_source.shape[1], dtype=float) * 1000.0 / config.srate
     return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source,
-                                region_source, manifest, args.plot, time_ms=time_ms)
+                                region_source, manifest, args.plot, time_ms=time_ms, resume=args.resume)
 
 
 def run_g2(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     if args.nmm_bank:
         return run_g2_bank(args, output_dir)
-    if args.atlas == "aal78":
+    if args.atlas in ("aal78", "aal78_membership"):
         raise ValueError("--atlas aal78 requires --nmm-bank for G2; the legacy spike library has 994 regions")
     if args.nmm_sample or args.nmm_state or args.nmm_source_mode != "auto" or args.nmm_start_s != 0:
         raise ValueError("Bank sample/state/mode/offset options require --nmm-bank")
@@ -347,7 +375,7 @@ def run_g2(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
         _json_safe(meta),
         config,
     )
-    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, region_source, manifest, args.plot)
+    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, region_source, manifest, args.plot, resume=args.resume)
 
 
 def build_g3_config(args: argparse.Namespace, active_regions: list[int]) -> TVBSignalConfig:
@@ -425,7 +453,7 @@ def run_g3(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
         _json_safe(meta),
         g2_config,
     )
-    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, region_source, manifest, args.plot, time_ms=time_ms)
+    return save_standard_sample(output_dir, args.sample_id, sensor, clean, noise, source, region_source, manifest, args.plot, time_ms=time_ms, resume=args.resume)
 
 
 def save_standard_sample(
@@ -439,8 +467,13 @@ def save_standard_sample(
     manifest: dict[str, Any],
     plot: bool,
     time_ms: np.ndarray | None = None,
+    source_components: dict[str, np.ndarray] | None = None,
+    *, sample_arrays: dict[str, np.ndarray] | None = None,
+    request_identity: dict[str, Any] | None = None,
+    resume: bool = False,
 ) -> dict[str, Any]:
-    sample_dir = output_dir / sample_id
+    """Save once; generic resume verifies generated arrays rather than skipping work."""
+    manifest = dict(manifest)
 
     data_name = f"{sample_id}_data.npz"
     save_payload: dict[str, Any] = {
@@ -449,25 +482,29 @@ def save_standard_sample(
         "sensor_noise": noise,
         "source": source,
     }
-    if not all(key in manifest for key in NOISE_ARRAY_KEYS):
+    if sample_arrays is not None:
+        save_payload.update(sample_arrays)
+    covariance_source = manifest if sample_arrays is None else save_payload
+    if not all(key in covariance_source for key in NOISE_ARRAY_KEYS):
         raise ValueError('Generated sensor samples must include a baseline and its covariance; regenerate with the current generator')
     for key in NOISE_ARRAY_KEYS:
-        values = np.asarray(manifest[key], dtype=np.float32 if key == 'baseline_sensor' else np.float64)
+        values = np.asarray(covariance_source[key], dtype=np.float32 if key == 'baseline_sensor' else np.float64)
         valid_shape = (values.ndim == 2 and values.shape[0] == sensor.shape[0]
                        and (values.shape[1] >= 2 if key == 'baseline_sensor' else values.shape[1] == sensor.shape[0]))
         if not valid_shape or not np.isfinite(values).all():
             raise ValueError(f'{key} must be finite and match the exported sensor channels')
         save_payload[key] = values
     for key in NOISE_ARRAY_KEYS:
-        manifest.pop(key)
+        manifest.pop(key, None)
     manifest["noise_covariance_file"] = data_name
     if region_source is not None:
         save_payload["region_source"] = region_source
     if time_ms is not None:
         save_payload["time_ms"] = time_ms
-    sample_dir.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(sample_dir / data_name, **save_payload)
-
+    if source_components:
+        save_payload.update(source_components)
+        manifest['source_components_file'] = data_name
+        manifest['source_component_keys'] = sorted(source_components)
     manifest.update(
         {
             "standard_data": data_name,
@@ -481,17 +518,29 @@ def save_standard_sample(
             "sensor_noise_shape": list(noise.shape),
             "source_shape": list(source.shape),
             "region_source_shape": list(region_source.shape) if region_source is not None else None,
-            "source_psd_summary": estimate_power_spectrum_summary(source, float(manifest.get("srate", 500.0))),
         }
     )
+    if 'source_psd_summary' not in manifest:
+        manifest['source_psd_summary'] = estimate_power_spectrum_summary(source, float(manifest.get('srate', 500.0)))
+    artifacts = {}
     if plot:
         figure_name = f"{sample_id}_overview.png"
-        plot_standard_overview(sample_dir / figure_name, sample_id, sensor, clean, noise, source, region_source, manifest)
+        buffer = BytesIO()
+        plot_standard_overview(buffer, sample_id, sensor, clean, noise, source, region_source, manifest)
+        artifacts[figure_name] = buffer.getvalue()
         manifest["overview_figure"] = figure_name
-    manifest_path = sample_dir / f"{sample_id}_manifest.json"
-    manifest["manifest"] = manifest_path.name
-    manifest_path.write_text(json.dumps(_json_safe(manifest), indent=2), encoding="utf-8")
-    return manifest
+    manifest = _json_safe(manifest)
+    if request_identity is None:
+        array_hashes = {}
+        for key, value in save_payload.items():
+            array = np.ascontiguousarray(value)
+            digest = hashlib.sha256(str((array.shape, array.dtype.str)).encode('ascii'))
+            digest.update(array.tobytes())
+            array_hashes[key] = digest.hexdigest()
+        request_identity = dict(manifest=manifest, arrays_sha256=array_hashes,
+                                high_level_code_sha256=hashlib.sha256(Path(__file__).read_bytes()).hexdigest())
+    return save_sample_directory(output_dir, sample_id, save_payload, manifest,
+                                 request_identity=request_identity, resume=resume, artifacts=artifacts)
 
 
 def plot_standard_overview(
@@ -553,7 +602,7 @@ def plot_standard_overview(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="High-level interface for simulated source activity and EEG/MEG-like sensor data.")
     parser.add_argument("--engine", choices=["g1", "g2", "g3"], default="g2")
-    parser.add_argument("--atlas", choices=["legacy998", "aal78"], default=None,
+    parser.add_argument("--atlas", choices=ATLAS_CHOICES, default=None,
                         help="G2 bank/G3 atlas: legacy 998 nodes (994 exported), or 78 cortical AAL regions")
     parser.add_argument("--source-type", default=None)
     parser.add_argument("--sample-id", default="sim_sample")
@@ -580,6 +629,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--clip-id", type=int, default=1)
     parser.add_argument("--keep-nmm-background", action="store_true")
     parser.add_argument("--patch-area-mm2", type=float, default=180.0)
+    parser.add_argument('--patch-geometry', choices=('geodesic', 'legacy_bfs'), default='geodesic')
     parser.add_argument("--decay-mm", type=float, default=12.0)
     parser.add_argument("--min-seed-distance-mm", type=float, default=25.0)
     parser.add_argument("--spatial-mode", choices=["static", "auto", "diffuse", "contract", "pulse"], default="auto",
@@ -589,14 +639,31 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--diffusion-start-s", type=float, default=0.)
     parser.add_argument("--diffusion-duration-s", type=float, default=.3)
     parser.add_argument("--source-background-type", default=None)
+    parser.add_argument('--source-background-config', type=Path, help='G1 spectral_rest background settings JSON')
+    parser.add_argument('--cortex-mask', action=argparse.BooleanOptionalAction, default=True,
+                        help='Apply available cortical scouts to G1 patch placement; --no-cortex-mask is legacy replay')
     parser.add_argument("--source-snr-db", type=float, default=None)
-    parser.add_argument("--sensor-noise-type", default="pink", choices=["white", "pink", "powerlaw", "specparam_resting", "mixed", "eegsourcesim_resting"])
-    parser.add_argument("--sensor-snr-db", type=float, default=10.0)
-    parser.add_argument("--sensor-snr-mode", default="robust_global_rms", choices=["global_rms", "robust_global_rms", "active_rms"])
+    parser.add_argument("--sensor-noise-type", default="iid_white", choices=["iid_white", "white", "pink", "powerlaw", "specparam_resting", "mixed", "eegsourcesim_resting", "real"])
+    parser.add_argument('--real-noise-registry', type=Path)
+    parser.add_argument('--real-noise-record-id')
+    parser.add_argument('--real-noise-split', choices=('train', 'val', 'test'))
+    parser.add_argument('--channel-names', type=Path, help='JSON list in the exact leadfield row order')
+    parser.add_argument('--allow-combined-real-source-background', action='store_true')
+    parser.add_argument("--sensor-snr-db", type=lambda value: None if value.lower() == 'none' else float(value), default=10.0)
+    parser.add_argument('--amplitude-mode', choices=('relative', 'physical'), default='relative')
+    parser.add_argument('--foreground-peak-am', type=float)
+    parser.add_argument('--leadfield-source-unit', choices=('A*m',))
+    parser.add_argument('--sensor-units', nargs='+')
+    parser.add_argument('--sensor-noise-std', nargs='+', type=float)
+    parser.add_argument('--record-observability', action='store_true')
+    parser.add_argument("--sensor-snr-mode", default="active_rms", choices=["global_rms", "robust_global_rms", "active_rms"])
     parser.add_argument("--sensor-snr-clip-quantile", type=float, default=0.95)
     parser.add_argument("--baseline-duration-s", type=float, default=2.0)
+    parser.add_argument('--covariance-estimator', choices=('empirical', 'oas'), default='empirical')
     parser.add_argument("--g1-source-model", choices=("patch", "lbo", "lbo_network"), default="patch")
     parser.add_argument("--g1-spectral-config", type=Path, help="JSON settings for the G1 spectral source model")
+    parser.add_argument('--g1-multiscale-config', type=Path, help='Optional spectral foreground residual settings JSON')
+    parser.add_argument('--background-multiscale-config', type=Path, help='Optional spectral_rest background residual settings JSON')
     parser.add_argument("--average-reference", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument("--random-seed", type=int, default=20240629)
     parser.add_argument("--warmup-ms", type=float, default=1000.0,
@@ -609,12 +676,24 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--jr-noise-scale", type=float, default=None, help="Override the source-type preset")
     parser.add_argument("--coupling-strength", type=float, default=None, help="Override the source-type preset")
     parser.add_argument("--plot", action="store_true")
+    parser.add_argument('--resume', action='store_true',
+                        help='Verify and reuse identical committed output after generation; never overwrite')
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.engine != 'g1' and (args.sensor_noise_type == 'real' or args.real_noise_registry
+            or args.real_noise_record_id or args.real_noise_split or args.channel_names
+            or args.allow_combined_real_source_background or args.g1_multiscale_config
+            or args.background_multiscale_config):
+        parser.error('Registered NMM noise uses nmm_simulation.py; multiscale settings are G1-only')
+    if args.engine != 'g1' and (args.amplitude_mode != 'relative' or any(
+            value is not None for value in (args.foreground_peak_am, args.leadfield_source_unit, args.sensor_units, args.sensor_noise_std))):
+        parser.error('Physical NMM generation uses nmm_simulation.py with an explicit JSON unit contract')
+    if args.engine != 'g1' and args.source_background_config is not None:
+        parser.error('--source-background-config is only available with G1')
     if args.engine == "g1" and args.atlas is not None:
         parser.error("--atlas is available only with --engine g2 or g3")
     if args.engine != "g2" and (args.nmm_bank or args.nmm_sample or args.nmm_state

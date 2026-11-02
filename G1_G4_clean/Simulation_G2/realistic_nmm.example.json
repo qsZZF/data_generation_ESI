@@ -1,0 +1,20 @@
+{
+  "sample_id": "nmm_cortical_membership_demo",
+  "atlas": "aal78_membership",
+  "preset": "alpha_candidate",
+  "provider": "cache",
+  "bank_dir": "generated_simulation_dataset/realism_validation/nmm_cache",
+  "source_mode": "selected",
+  "active_regions": [0, 20],
+  "n_active_regions": 2,
+  "duration_s": 1.0,
+  "srate": 256.0,
+  "warmup_s": 1.0,
+  "baseline_duration_s": 2.0,
+  "source_snr_db": 15.0,
+  "source_snr_metric": "vertex_mean",
+  "sensor_snr_db": 10.0,
+  "sensor_noise_type": "iid_white",
+  "covariance_estimator": "oas",
+  "random_seed": 20261031
+}

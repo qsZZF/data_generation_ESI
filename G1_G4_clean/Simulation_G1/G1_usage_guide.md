@@ -1,5 +1,22 @@
 # G1 Simulation Usage Guide
 
+## 2026-11-01：测地 patch、单位与可观测性
+
+新配置默认 `patch_geometry="geodesic"`，`legacy_bfs` 保留旧生长/衰减。
+可选 `amplitude_mode="physical"` 要求明确的 forward 单位、源峰值与固定测量噪声幅度；
+不会把旧相对活动自动标为生理电流。`record_observability=True` 可记录每个样本的
+几何零空间、噪声保留空间与连续分辨率诊断。默认关闭这一计算以保留快速训练调用。
+详见 [接口与验证说明](../GEOMETRY_UNITS_OBSERVABILITY.md)。
+
+## 2026-10-31：缺陷修复与空间相关背景
+
+谱 ERP 默认随机化空间系数，`erp_spatial_mode="fixed"` 可重放旧固定图。
+真实 Brainstorm 加载器默认读取皮层 mask，约束 patch 种子与整个支撑。
+新增 `source_background_type="spectral_rest"`，用 `source_background_spectral` 指定
+匹配网格的 LBO/网络背景；baseline 与活动段共用映射和增益，默认仍为 2 秒。
+可选 `covariance_estimator="oas"`，`empirical` 保留旧协方差行为；活动窗 SNR 设置保留。
+示例、兼容性和实际验证见 [本次更新说明](../GENERATION_REALISM_UPDATE.md)。
+
 ## 皮层几何与网络约束生成：2026-10-28
 
 新增 `G1SimulationConfig.source_model="lbo"` / `"lbo_network"`，原默认 `"patch"` 不变。

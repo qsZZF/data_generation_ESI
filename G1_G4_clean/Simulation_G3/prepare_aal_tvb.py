@@ -13,7 +13,6 @@ import sys
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
 import numpy as np
-from scipy import sparse
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -21,6 +20,7 @@ if str(ROOT) not in sys.path:
 
 from Simulation_G2.nmm_bank import projection_hash
 from Simulation_G4.resources import SC_RESOURCES, load_cortical_connectivity
+from Simulation_G4.atlas import load_atlas, parcel_projection, projection_mode_for_bundle
 
 DEFAULT_OUTPUT = ROOT / "Anatomy/G3_AAL78_TVB"
 DEFAULT_ATLAS = ROOT / "Anatomy/G4_AAL_cortical"
@@ -65,18 +65,23 @@ def build_assets(output_dir=DEFAULT_OUTPUT, *, atlas_dir=DEFAULT_ATLAS, sc_dir=D
     sc_path = sc_dir / "SCmatrices88healthy.mat"
     if sha256(sc_path) != SC_RESOURCES[sc_path.name][1]:
         raise ValueError("Structural connectivity SHA256 differs from verified published resource")
-    atlas_manifest = json.loads((atlas_dir / "manifest.json").read_text(encoding="utf-8"))
-    if sha256(atlas_dir / "atlas.npz") != atlas_manifest["bundle_sha256"]:
-        raise ValueError("Atlas SHA256 differs from its recorded bundle")
-    with np.load(atlas_dir / "atlas.npz", allow_pickle=False) as source:
-        atlas = {key: source[key] for key in source.files}
+    atlas = load_atlas(atlas_dir)
+    atlas_manifest = atlas['manifest']
+    projection_mode = projection_mode_for_bundle(atlas, atlas_manifest)
+    old_manifest = output_dir / 'manifest.json'
+    if old_manifest.exists():
+        existing = json.loads(old_manifest.read_text(encoding='utf-8'))
+        if existing.get('projection_mode', 'area_unit_sum') != projection_mode:
+            raise FileExistsError('Refusing to overwrite TVB sidecar for a different projection mode')
+    elif (output_dir / 'connectivity_78.zip').exists():
+        raise FileExistsError('Existing connectivity has no manifest; use a separate output directory')
     names, ids, roi = atlas["region_names"], atlas["region_ids"], atlas["aal_roi_numbers"]
     if (len(names) != 78 or len(set(names.tolist())) != 78 or len(set(ids.tolist())) != 78
             or roi.shape != (78,) or ids.shape != (78,)):
         raise ValueError("Expected exactly 78 uniquely labelled cortical AAL parcels")
     with (atlas_dir / "parcels.csv").open(encoding="utf-8", newline="") as handle:
         parcels = list(csv.DictReader(handle))
-    reference_path = ROOT / "Simulation_G4/reference/aal_regions.csv"
+    reference_path = ROOT / "Simulation_G4/aal_regions.csv"
     with reference_path.open(encoding="utf-8", newline="") as handle:
         reference = list(csv.DictReader(handle))
     if len(parcels) != 78:
@@ -89,7 +94,7 @@ def build_assets(output_dir=DEFAULT_OUTPUT, *, atlas_dir=DEFAULT_ATLAS, sc_dir=D
                 or int(parcel["atlas_id"]) != label or int(parcel["aal_roi_number"]) != number
                 or original["atlas_name"] != name or int(original["atlas_mni_id"]) != label):
             raise ValueError("AAL name, label and connectivity ROI ordering disagree")
-    projection = sparse.load_npz(atlas_dir / "projection.npz").tocsc()
+    projection = atlas['projection'].tocsc()
     indices = atlas["vertex_to_region"]
     vertices, areas = atlas["vertices_fsaverage_mm"], atlas["vertex_area_mm2"]
     if projection.shape != (20484, 78) or indices.shape != (20484,):
@@ -100,10 +105,9 @@ def build_assets(output_dir=DEFAULT_OUTPUT, *, atlas_dir=DEFAULT_ATLAS, sc_dir=D
             or np.any(atlas["labels_vertex"][~assigned] != 0)):
         raise ValueError("Atlas vertex labels do not match projection column ordering")
     totals = np.bincount(indices[assigned], weights=areas[assigned], minlength=78)
-    expected = sparse.csc_matrix((areas[assigned] / totals[indices[assigned]],
-                                 (np.flatnonzero(assigned), indices[assigned])), shape=projection.shape)
+    expected, _ = parcel_projection(atlas['labels_vertex'], ids, areas, mode=projection_mode)
     if projection_hash(projection) != projection_hash(expected):
-        raise ValueError("Projection differs from recorded area-weighted atlas assignment")
+        raise ValueError("Projection differs from recorded projection mode and atlas assignment")
     original_weights = load_cortical_connectivity(sc_dir, roi)
     weights = without_self_connections(original_weights)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -133,6 +137,7 @@ def build_assets(output_dir=DEFAULT_OUTPUT, *, atlas_dir=DEFAULT_ATLAS, sc_dir=D
         "connectivity_file": zip_path.name, "connectivity_sha256": sha256(zip_path),
         "projection_path": str((atlas_dir / "projection.npz").resolve()),
         "projection_sha256": projection_hash(projection),
+        "projection_mode": projection_mode,
         "source_files_sha256": {str(path.resolve()): sha256(path) for path in
                                 (sc_path, atlas_dir / "atlas.npz", atlas_dir / "manifest.json",
                                  atlas_dir / "projection.npz", atlas_dir / "parcels.csv", reference_path)},
@@ -162,7 +167,9 @@ def build_assets(output_dir=DEFAULT_OUTPUT, *, atlas_dir=DEFAULT_ATLAS, sc_dir=D
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--atlas-dir", type=Path, default=DEFAULT_ATLAS)
+    parser.add_argument("--sc-dir", type=Path, default=DEFAULT_SC)
     args = parser.parse_args()
-    result = build_assets(args.output_dir)
+    result = build_assets(args.output_dir, atlas_dir=args.atlas_dir, sc_dir=args.sc_dir)
     print(json.dumps({"directory": str(args.output_dir), "n_regions": result["n_regions"],
                       "connectivity_sha256": result["connectivity_sha256"]}))

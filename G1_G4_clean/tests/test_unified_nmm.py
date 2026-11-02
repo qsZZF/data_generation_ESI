@@ -14,6 +14,17 @@ from nmm_simulation import NMMSimulationConfig, NMMSourceSimulator
 
 
 class UnifiedNMMTests(unittest.TestCase):
+    def test_replayed_data_guided_source_preserves_human_ancestry(self):
+        from dataclasses import replace
+        original=self.fake_trajectory
+        def data_guided(*args,**kwargs):
+            source,times,entry=original(*args,**kwargs)
+            entry.setdefault('provenance',{})['parent_data_group_ids']=['measured_subject_dataset_S001','measured_fit_record_1']
+            return source,times,entry
+        with patch('nmm_simulation.resolve_trajectory',side_effect=data_guided):
+            sample=self.sim.generate_sample(replace(self.config,source_snr_db=None))
+        self.assertIn('measured_subject_dataset_S001',sample['manifest']['parent_data_group_ids'])
+        self.assertIn('measured_fit_record_1',sample['manifest']['parent_data_group_ids'])
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -50,9 +61,8 @@ class UnifiedNMMTests(unittest.TestCase):
         return source, t*1000, entry
 
     def test_both_snrs_and_component_truth_survive_export_precision(self):
-        result = self.sim.generate_sample(self.config)
-        area = self.backend.vertex_area
-        power = lambda x: np.average(np.mean(x.astype(float)**2, axis=1), weights=area)
+        result = self.sim.generate_sample(replace(self.config, sensor_snr_mode='global_rms'))
+        power = lambda x: np.mean(x.astype(float)**2)
         measured = 10*np.log10(power(result['source_foreground'])/power(result['source_background']))
         self.assertAlmostEqual(measured, 3, places=5)
         sensor_snr = 10*np.log10(np.mean(result['clean_sensor'].astype(float)**2)/np.mean(result['sensor_noise'].astype(float)**2))

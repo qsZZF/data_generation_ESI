@@ -26,3 +26,19 @@ class SpectralCLITests(unittest.TestCase):
         config=build_g1_config(args)
         self.assertEqual(config.source_model,'patch')
         self.assertEqual(config.spectral,{})
+
+    def test_registered_noise_and_residual_flags_reach_config(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'residual.json'
+            path.write_text(json.dumps(dict(fraction=.1,n_components=4)),encoding='utf-8')
+            args=build_parser().parse_args(['--engine','g1','--source-type','erp',
+                '--g1-source-model','lbo','--g1-multiscale-config',str(path),
+                '--sensor-noise-type','real','--real-noise-registry','noise_registry.json',
+                '--real-noise-record-id','rest','--real-noise-split','train',
+                '--allow-combined-real-source-background'])
+            config=build_g1_config(args)
+            config.validate_recipe()
+            self.assertEqual(config.multiscale,dict(fraction=.1,n_components=4))
+            self.assertEqual(config.real_noise_record_id,'rest')
+            self.assertEqual(config.real_noise_split,'train')
+            self.assertTrue(config.allow_combined_real_source_background)

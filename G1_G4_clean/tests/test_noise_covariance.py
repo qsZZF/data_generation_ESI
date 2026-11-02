@@ -7,6 +7,112 @@ from Simulation_G1.noise_covariance import (covariance_payload, noise_covariance
 
 
 class NoiseCovarianceTests(unittest.TestCase):
+    def test_mixed_units_rank_and_whitening_are_invariant(self):
+        rng = np.random.default_rng(91)
+        noise = rng.normal(size=(6, 200))
+        units = np.array([1e-15, 2e-15, 1e-13, 3e-13, 1e-6, 2e-6])
+        covariance, info = noise_covariance(noise * units[:, None])
+        self.assertEqual(info['rank'], 6)
+        w = whitener_from_covariance(covariance)
+        np.testing.assert_allclose(w @ covariance @ w.T, np.eye(6), atol=1e-12)
+        for estimator in ('empirical', 'oas'):
+            plain, _ = noise_covariance(noise, estimator=estimator)
+            scaled, _ = noise_covariance(noise * units[:, None], estimator=estimator)
+            np.testing.assert_allclose(scaled / units[:, None] / units[None, :], plain, atol=1e-12)
+
+    def test_whitener_annihilates_physical_reference_and_ssp_nullspace(self):
+        rng = np.random.default_rng(98)
+        noise = rng.normal(size=(8, 300)) * np.arange(1, 9)[:, None]
+        car = np.eye(8) - np.ones((8, 8)) / 8
+        removed = np.array([1., -1., 0., 0., 0., 0., 0., 0.]) / np.sqrt(2)
+        for projector in (car, car - np.outer(removed, removed)):
+            covariance, _ = noise_covariance(noise, projector=projector)
+            w = whitener_from_covariance(covariance)
+            np.testing.assert_allclose(w @ (np.eye(8) - projector), 0, atol=1e-13)
+            np.testing.assert_allclose(w @ np.ones(8), 0, atol=1e-13)
+            np.testing.assert_allclose(w @ covariance @ w.T, np.eye(len(w)), atol=1e-12)
+
+    def test_oas_preserves_reference_and_projector_not_sample_rank(self):
+        rng = np.random.default_rng(92)
+        noise = rng.normal(size=(8, 4))
+        p = np.eye(8) - np.ones((8, 8)) / 8
+        removed = np.array([1., -1., 0., 0., 0., 0., 0., 0.]) / np.sqrt(2)
+        p -= np.outer(removed, removed)
+        covariance, info = noise_covariance(noise, estimator='oas', projector=p,
+                                            average_reference=True)
+        self.assertEqual(info['empirical_rank'], 3)
+        self.assertEqual(info['constraint_rank'], 6)
+        self.assertEqual(info['rank'], 6)
+        self.assertGreater(info['shrinkage'], 0)
+        np.testing.assert_allclose(covariance @ np.ones(8), 0, atol=1e-13)
+        np.testing.assert_allclose(covariance @ removed, 0, atol=1e-13)
+        w = whitener_from_covariance(covariance)
+        np.testing.assert_allclose(w @ covariance @ w.T, np.eye(6), atol=1e-12)
+
+    def test_oas_baseline_leaves_oracle_empirical_and_zero_unchanged(self):
+        rng = np.random.default_rng(93)
+        baseline = rng.normal(size=(12, 8))
+        event = rng.normal(size=(12, 50))
+        arrays, info = baseline_covariance_payload(baseline, event, estimator='oas')
+        self.assertEqual(info['noise_covariance_info']['estimator'], 'oas_standardized_subspace')
+        self.assertEqual(info['oracle_noise_covariance_info']['estimator'], 'empirical_centered')
+        np.testing.assert_allclose(arrays['oracle_noise_covariance'], np.cov(event))
+        covariance, zero = noise_covariance(np.zeros((8, 4)), estimator='oas', average_reference=True)
+        self.assertEqual(zero['rank'], 0)
+        self.assertEqual(zero['status'], 'no_noise_variance')
+        np.testing.assert_array_equal(covariance, 0)
+
+    def test_oas_improves_heldout_covariance_in_controlled_gaussian_case(self):
+        rng = np.random.default_rng(94)
+        train = rng.normal(size=(24, 32))
+        heldout = rng.normal(size=(24, 10000))
+        errors = []
+        for estimator in ('empirical', 'oas'):
+            covariance, _ = noise_covariance(train, estimator=estimator)
+            w = whitener_from_covariance(covariance)
+            errors.append(np.linalg.norm(np.cov(w @ heldout) - np.eye(24)))
+        self.assertLess(errors[1], errors[0])
+
+    def test_oas_coefficient_matches_sklearn_after_standardization(self):
+        try:
+            from sklearn.covariance import oas
+        except ImportError:
+            self.skipTest('Optional reference implementation is not installed')
+        rng = np.random.default_rng(96)
+        noise = rng.normal(size=(7, 30))
+        noise[1] += noise[0] * 2
+        centered = noise - noise.mean(axis=1, keepdims=True)
+        scale = centered.std(axis=1, ddof=1)
+        expected, coefficient = oas((centered / scale[:, None]).T, assume_centered=True)
+        expected *= 30 / 29
+        actual, info = noise_covariance(noise, estimator='oas')
+        self.assertAlmostEqual(info['shrinkage'], coefficient)
+        np.testing.assert_allclose(actual / scale[:, None] / scale[None, :], expected, atol=1e-12)
+
+    def test_short_oas_silent_channels_and_noncommuting_constraints(self):
+        noise = np.random.default_rng(97).normal(size=(5, 2))
+        noise[0] = 0
+        covariance, info = noise_covariance(noise, estimator='oas')
+        self.assertEqual(info['empirical_rank'], 1)
+        self.assertEqual(info['rank'], 4)
+        np.testing.assert_array_equal(covariance[0], 0)
+        p = np.diag([0., 1., 1., 1., 1.])
+        covariance, info = noise_covariance(noise, estimator='oas', projector=p, average_reference=True)
+        self.assertEqual(info['constraint_rank'], 3)
+        self.assertEqual(info['rank'], 3)
+        np.testing.assert_allclose(covariance[0], 0, atol=1e-13)
+        np.testing.assert_allclose(covariance @ np.ones(5), 0, atol=1e-13)
+
+    def test_invalid_projectors_and_standardized_indefiniteness(self):
+        noise = np.random.default_rng(95).normal(size=(3, 10))
+        for projector in (np.eye(2), np.diag([1., .5, 0.]), np.array([[1., 1., 0.], [0., 1., 0.], [0., 0., 1.]])):
+            with self.assertRaises(ValueError):
+                noise_covariance(noise, projector=projector)
+        with self.assertRaises(ValueError):
+            noise_covariance(noise, estimator='unknown')
+        with self.assertRaises(ValueError):
+            whitener_from_covariance(np.array([[1e-30, 2e-21], [2e-21, 1e-12]]))
+
     def test_default_covariance_uses_baseline_not_activity_noise(self):
         rng = np.random.default_rng(81)
         baseline = rng.normal(size=(4, 800)) * 1e-6
@@ -17,6 +123,19 @@ class NoiseCovarianceTests(unittest.TestCase):
         self.assertEqual(info['noise_covariance_info']['provenance'], 'generated_baseline')
         self.assertEqual(info['noise_covariance_info']['n_samples'], 800)
         self.assertEqual(info['oracle_noise_covariance_info']['n_samples'], 100)
+
+    def test_empirical_reference_preserves_exported_float32_covariance(self):
+        rng = np.random.default_rng(99)
+        noise = rng.normal(size=(8, 100)) * np.arange(1, 9)[:, None]
+        noise -= noise.mean(axis=0, keepdims=True)
+        exported = noise.astype(np.float32)
+        centered = exported.astype(float) - exported.astype(float).mean(axis=1, keepdims=True)
+        expected = centered @ centered.T / (exported.shape[1] - 1)
+        expected = (expected + expected.T) / 2
+        actual, info = noise_covariance(exported, average_reference=True)
+        np.testing.assert_array_equal(actual, expected)
+        self.assertFalse(info['projection_applied'])
+        self.assertEqual(info['constraint_rank'], 7)
 
     def test_joint_sensor_baseline_retains_noise_scale_and_disjoint_data(self):
         from Simulation_G2.g2_simulation_core import G2SourceSimulator

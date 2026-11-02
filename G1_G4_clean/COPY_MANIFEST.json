@@ -15,23 +15,23 @@
   "copied_files": {
     "nmm_simulation.py": {
       "original": "nmm_simulation.py",
-      "original_sha256": "2fd629d53619e0f9e7f2890b523de3b30e639011f0681e4c1ddf2540594e11b6",
-      "copied_sha256": "2fd629d53619e0f9e7f2890b523de3b30e639011f0681e4c1ddf2540594e11b6",
-      "bytes": 25443,
+      "original_sha256": "769c8c9fd3682f1c89f827f9cb03e196431869e8db9c4c53a57a1200f4516c1c",
+      "copied_sha256": "769c8c9fd3682f1c89f827f9cb03e196431869e8db9c4c53a57a1200f4516c1c",
+      "bytes": 37938,
       "changes": [],
       "byte_identical_to_original": true
     },
     "NMM_USAGE.md": {
       "original": "NMM_USAGE.md",
-      "original_sha256": "877a604c8f440a237963904799d383626d304687cd11340840297c788dbd8140",
-      "copied_sha256": "877a604c8f440a237963904799d383626d304687cd11340840297c788dbd8140",
-      "bytes": 18381,
-      "byte_identical_to_original": true,
+      "original_sha256": "03c8a9f2ea572dbf0776806cf91d294c426963b029a4665a0d39da36d731062b",
+      "copied_sha256": "03c8a9f2ea572dbf0776806cf91d294c426963b029a4665a0d39da36d731062b",
+      "bytes": 19316,
       "changes": [
         "Replace omitted experiment-result links with snapshot validation guidance.",
         "Separate copy validation from historical experiment claims and omitted artifacts.",
         "Preserve collection-specific notes while adding the shared spatial guide."
-      ]
+      ],
+      "byte_identical_to_original": true
     },
     "scripts/project_network_priors_to_fsaverage5.py": {
       "original": "scripts/project_network_priors_to_fsaverage5.py",
@@ -43,11 +43,11 @@
     },
     "simulate_source_sensor.py": {
       "original": "simulate_source_sensor.py",
-      "original_sha256": "5835ad760b5d1ecfd5154a112594d9013afaf338c5b3d3b91dc3109963357bc3",
-      "copied_sha256": "5835ad760b5d1ecfd5154a112594d9013afaf338c5b3d3b91dc3109963357bc3",
-      "bytes": 32319,
-      "byte_identical_to_original": true,
-      "changes": []
+      "original_sha256": "0811663400f423053690ee1ee905b9befa80652318a115fe2d972eea3719dce3",
+      "copied_sha256": "0811663400f423053690ee1ee905b9befa80652318a115fe2d972eea3719dce3",
+      "bytes": 38506,
+      "changes": [],
+      "byte_identical_to_original": true
     },
     "Simulation_G1/g1_simulation.py": {
       "original": "Simulation_G1/g1_simulation.py",
@@ -59,22 +59,22 @@
     },
     "Simulation_G1/g1_simulation_core.py": {
       "original": "Simulation_G1/g1_simulation_core.py",
-      "original_sha256": "9af82da428be4c4ee671b61adb912432aba5fdcb5e31d68065cef66f7f050f02",
-      "copied_sha256": "9af82da428be4c4ee671b61adb912432aba5fdcb5e31d68065cef66f7f050f02",
-      "bytes": 90337,
+      "original_sha256": "7099588e53001c0382ca5ac30475fde6f8efadbb08d605a11fd076f957b89880",
+      "copied_sha256": "7099588e53001c0382ca5ac30475fde6f8efadbb08d605a11fd076f957b89880",
+      "bytes": 119959,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G1/G1_usage_guide.md": {
       "original": "Simulation_G1/G1_usage_guide.md",
-      "original_sha256": "9a11716646e782f658a849d0dff7e68b4d2be813a3a39a8dc436c29d59f0a06b",
-      "copied_sha256": "a821f7e0d4b35806d3fbc549db11d4476dec1ceef5e85a97255f7b527fe1625c",
-      "bytes": 24372,
-      "byte_identical_to_original": false,
+      "original_sha256": "3f214733758514281d60205dfe41f5678dcb9502acafb2c128af675685fbb701",
+      "copied_sha256": "aebfd4e11c7c0d1da5e5e3e699b08e2520ef046dcca9ab6e4d970c314da4eb66",
+      "bytes": 25537,
       "changes": [
         "Remove reference to excluded historical design plan.",
         "Preserve collection-specific notes while adding the shared spatial guide."
-      ]
+      ],
+      "byte_identical_to_original": false
     },
     "Simulation_G1/generate_fs20k_g1_demo.py": {
       "original": "Simulation_G1/generate_fs20k_g1_demo.py",
@@ -96,11 +96,11 @@
     },
     "Simulation_G2/g2_simulation_core.py": {
       "original": "Simulation_G2/g2_simulation_core.py",
-      "original_sha256": "bcc9b262efc8e48030fbf5633b9445c7adba0765521e6c98bc4b2861912a3407",
-      "copied_sha256": "bcc9b262efc8e48030fbf5633b9445c7adba0765521e6c98bc4b2861912a3407",
-      "bytes": 45778,
-      "byte_identical_to_original": true,
-      "changes": []
+      "original_sha256": "df749e75d7c114dc0820538546db654993c5951c971d634e958c03487d0da82b",
+      "copied_sha256": "df749e75d7c114dc0820538546db654993c5951c971d634e958c03487d0da82b",
+      "bytes": 47003,
+      "changes": [],
+      "byte_identical_to_original": true
     },
     "Simulation_G2/generate_fs20k_g2_demo.py": {
       "original": "Simulation_G2/generate_fs20k_g2_demo.py",
@@ -114,9 +114,9 @@
     },
     "Simulation_G2/nmm_bank.py": {
       "original": "Simulation_G2/nmm_bank.py",
-      "original_sha256": "660adca1f3829ae1e26fccd3e309203b17a47d50c0531804c82bf1e76ee03a8d",
-      "copied_sha256": "660adca1f3829ae1e26fccd3e309203b17a47d50c0531804c82bf1e76ee03a8d",
-      "bytes": 15826,
+      "original_sha256": "d333dc0c9695c2fdce7dfc9a8afdd02d5be2bfed2f8eb26e914345553503a1a5",
+      "copied_sha256": "d333dc0c9695c2fdce7dfc9a8afdd02d5be2bfed2f8eb26e914345553503a1a5",
+      "bytes": 16688,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -134,11 +134,11 @@
     },
     "Simulation_G2/nmm_mixing.py": {
       "original": "Simulation_G2/nmm_mixing.py",
-      "original_sha256": "50a2db4cff90e786b4c7ad7acb0764cac2d283f7b663b8542d3a1b06ce3e32e4",
-      "copied_sha256": "50a2db4cff90e786b4c7ad7acb0764cac2d283f7b663b8542d3a1b06ce3e32e4",
-      "bytes": 12254,
-      "byte_identical_to_original": true,
-      "changes": []
+      "original_sha256": "8cf2f5773cccea201f6aa312c6ecd9ba1100dbe1eb12204742f31ffad71530ea",
+      "copied_sha256": "8cf2f5773cccea201f6aa312c6ecd9ba1100dbe1eb12204742f31ffad71530ea",
+      "bytes": 19176,
+      "changes": [],
+      "byte_identical_to_original": true
     },
     "Simulation_G3/aal78_pilot_plan.json": {
       "original": "Simulation_G3/aal78_pilot_plan.json",
@@ -150,10 +150,10 @@
     },
     "Simulation_G3/atlas_profiles.py": {
       "original": "Simulation_G3/atlas_profiles.py",
-      "original_sha256": "3c1ce613c8d7e3a91a1506c6c924e24825126b8fa6a7e0dd80d6fc3fdd26cc80",
+      "original_sha256": "dce644b8f141339885044d89bf67c2340a15a0d868150d0512c4b1c7f8d61620",
+      "copied_sha256": "dce644b8f141339885044d89bf67c2340a15a0d868150d0512c4b1c7f8d61620",
+      "bytes": 4327,
       "changes": [],
-      "copied_sha256": "3c1ce613c8d7e3a91a1506c6c924e24825126b8fa6a7e0dd80d6fc3fdd26cc80",
-      "bytes": 3357,
       "byte_identical_to_original": true
     },
     "Simulation_G3/compare_spike_bank.py": {
@@ -232,12 +232,12 @@
     },
     "Simulation_G3/prepare_aal_tvb.py": {
       "original": "Simulation_G3/prepare_aal_tvb.py",
-      "original_sha256": "8dc9727608cd750cf556a7c50b5fbf208bf264a94a33a2b123a380e83589262c",
+      "original_sha256": "442fe00a2393454db311e65d4d686b25734380448ba81e867b547a897e712f79",
+      "copied_sha256": "43821f0583ae0483ed13f6002fe3500a0644e57584b22cfb8f64d8864633731b",
+      "bytes": 10172,
       "changes": [
         "Use bundled lookup table instead of external reviews checkout."
       ],
-      "copied_sha256": "298e1c1d51fb007d8829071b684c9a86f3deede7f875ce5bf086a1081035c0e1",
-      "bytes": 9731,
       "byte_identical_to_original": false
     },
     "Simulation_G3/spike_comparison_plan.json": {
@@ -266,18 +266,18 @@
     },
     "Simulation_G4/atlas.py": {
       "original": "Simulation_G4/atlas.py",
-      "original_sha256": "d14e5d5eae1b74f7f89321df125685a95d3e404a5f36748f87280536e7ce8830",
+      "original_sha256": "706b5a649c723baebc9b3501b109b4a864b7511f4b5a628a945519e5d02bae30",
+      "copied_sha256": "706b5a649c723baebc9b3501b109b4a864b7511f4b5a628a945519e5d02bae30",
+      "bytes": 19458,
       "changes": [],
-      "copied_sha256": "d14e5d5eae1b74f7f89321df125685a95d3e404a5f36748f87280536e7ce8830",
-      "bytes": 11706,
       "byte_identical_to_original": true
     },
     "Simulation_G4/bank.py": {
       "original": "Simulation_G4/bank.py",
-      "original_sha256": "a63a1c80d03ca93c916ef1130fee567ebdc2ea2675dd64a59311935d60fc1fb9",
+      "original_sha256": "6a2bd86e571a28e4ab0030571c88b4c7a6e258d541c6a274799715585c8ccebe",
+      "copied_sha256": "6a2bd86e571a28e4ab0030571c88b4c7a6e258d541c6a274799715585c8ccebe",
+      "bytes": 22531,
       "changes": [],
-      "copied_sha256": "a63a1c80d03ca93c916ef1130fee567ebdc2ea2675dd64a59311935d60fc1fb9",
-      "bytes": 11545,
       "byte_identical_to_original": true
     },
     "Simulation_G4/data.py": {
@@ -332,21 +332,21 @@
     },
     "Simulation_G4/pipeline.py": {
       "original": "Simulation_G4/pipeline.py",
-      "original_sha256": "2f1d9c0f97f730340485166fe4f2b37df6b1c76b10bcc41f2e76765151326425",
+      "original_sha256": "4a62dde4f3b34458db96cb40bd5482efbee0e6427ac634ca333508551bad1839",
+      "copied_sha256": "4a62dde4f3b34458db96cb40bd5482efbee0e6427ac634ca333508551bad1839",
+      "bytes": 42036,
       "changes": [],
-      "copied_sha256": "2f1d9c0f97f730340485166fe4f2b37df6b1c76b10bcc41f2e76765151326425",
-      "bytes": 32372,
       "byte_identical_to_original": true
     },
     "Simulation_G4/README.md": {
       "original": "Simulation_G4/README.md",
-      "original_sha256": "3412194f65c984bd85e53832e98f12f91aa648a30bb561df89f6def85eae4793",
+      "original_sha256": "10a82b8efac57cbbf0927a0f885de5a987eb0bbfcaa50707f382a15e8f9e6f0c",
+      "copied_sha256": "e03ca3158bfc00d8e5a22fbf254795e8a34d87c5c93286ddd26d31a557c465ec",
+      "bytes": 26882,
       "changes": [
         "Do not imply that original results/checkpoints are included.",
         "Link the supplied asset instructions."
       ],
-      "copied_sha256": "35071922c851a2ab3afad1881fc47283de2f422a7d760685681725b776278dc5",
-      "bytes": 25723,
       "byte_identical_to_original": false
     },
     "Simulation_G4/resources.py": {
@@ -361,10 +361,10 @@
     },
     "Simulation_G4/simulator.py": {
       "original": "Simulation_G4/simulator.py",
-      "original_sha256": "34ad4d72879080b2641a0caa563cb57ba50b4c253fab44870ea6a4dd35a36623",
+      "original_sha256": "c1ae1d0c3425ea546f8d1a558cfdde102bd4cc5aa28e17fa3723b543bcb7f1bb",
+      "copied_sha256": "c1ae1d0c3425ea546f8d1a558cfdde102bd4cc5aa28e17fa3723b543bcb7f1bb",
+      "bytes": 17265,
       "changes": [],
-      "copied_sha256": "34ad4d72879080b2641a0caa563cb57ba50b4c253fab44870ea6a4dd35a36623",
-      "bytes": 15137,
       "byte_identical_to_original": true
     },
     "SIMULATION_GUIDELINE.md": {
@@ -434,12 +434,12 @@
     },
     "tests/test_g4_atlas.py": {
       "original": "tests/test_g4_atlas.py",
-      "original_sha256": "4228fc7255cb7a93dd7f15eedc9bc8a8fbc1f59d19d136aa55904717a0cc2f76",
+      "original_sha256": "2d28d8a7d158ca8e6e141a088d750ed2474d6f7221b2753a7482d5eeccadf126",
+      "copied_sha256": "f541cbe1c690f2328dc04363a950c25a66a360b010c1f6c90c0467acc0a6d90e",
+      "bytes": 4392,
       "changes": [
         "Use bundled lookup table instead of external reviews checkout."
       ],
-      "copied_sha256": "a9183b9e428623f2c54f5fe933ab7cff3cd35fd0fe1a1ae45b0e07b3160cac09",
-      "bytes": 3410,
       "byte_identical_to_original": false
     },
     "tests/test_g4_bank.py": {
@@ -476,10 +476,10 @@
     },
     "tests/test_g4_pipeline.py": {
       "original": "tests/test_g4_pipeline.py",
-      "original_sha256": "1f9ae223723d4dc43291f67f6b81eb22a8f1782e907b0bcafbb53c40540f6f25",
+      "original_sha256": "40ad5b790aee57129a512b3c5781a17b497c8c7495e851b3dcddccb20719b6c5",
+      "copied_sha256": "40ad5b790aee57129a512b3c5781a17b497c8c7495e851b3dcddccb20719b6c5",
+      "bytes": 22122,
       "changes": [],
-      "copied_sha256": "1f9ae223723d4dc43291f67f6b81eb22a8f1782e907b0bcafbb53c40540f6f25",
-      "bytes": 20565,
       "byte_identical_to_original": true
     },
     "tests/test_g4_simulator.py": {
@@ -500,10 +500,10 @@
     },
     "tests/test_nmm_mixing.py": {
       "original": "tests/test_nmm_mixing.py",
-      "original_sha256": "3d3cb2aef0d1ff9d561a1d31232f7cf7b4928eb58e586bd479f6a7feb9d8fd51",
+      "original_sha256": "9e74128377f0699ac1d4cff00faf44c32d0229b980dc15315034101841071160",
+      "copied_sha256": "9e74128377f0699ac1d4cff00faf44c32d0229b980dc15315034101841071160",
+      "bytes": 9052,
       "changes": [],
-      "copied_sha256": "3d3cb2aef0d1ff9d561a1d31232f7cf7b4928eb58e586bd479f6a7feb9d8fd51",
-      "bytes": 7778,
       "byte_identical_to_original": true
     },
     "tests/test_nmm_sources.py": {
@@ -548,10 +548,10 @@
     },
     "tests/test_unified_nmm.py": {
       "original": "tests/test_unified_nmm.py",
-      "original_sha256": "f90ffd618365b5ab13eb8f55d6906a87e8de1c6613c933a6ffbea7519c4a290a",
+      "original_sha256": "0237eae33b37c7e95daccb47551abb5397d5ace02087b1db436c053d9a6537e4",
+      "copied_sha256": "0237eae33b37c7e95daccb47551abb5397d5ace02087b1db436c053d9a6537e4",
+      "bytes": 9750,
       "changes": [],
-      "copied_sha256": "f90ffd618365b5ab13eb8f55d6906a87e8de1c6613c933a6ffbea7519c4a290a",
-      "bytes": 9019,
       "byte_identical_to_original": true
     },
     "Simulation_G4/reference/aal_regions.csv": {
@@ -590,17 +590,17 @@
     },
     "tests/test_spatial_entrypoints.py": {
       "original": "tests/test_spatial_entrypoints.py",
-      "original_sha256": "d52c3dd0087bf3fb97d4f2c01023996aa2922514002870f6b29b60dd2c6342c2",
-      "copied_sha256": "d52c3dd0087bf3fb97d4f2c01023996aa2922514002870f6b29b60dd2c6342c2",
-      "bytes": 7482,
+      "original_sha256": "6e56d6de296f5d159dc68b14e3417ebc1b54ca7de8037b78864f392ba9bead7e",
+      "copied_sha256": "6e56d6de296f5d159dc68b14e3417ebc1b54ca7de8037b78864f392ba9bead7e",
+      "bytes": 7570,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G1/training_recipes.py": {
       "original": "Simulation_G1/training_recipes.py",
-      "original_sha256": "2810416ca6477be8207edf5a60a4c0773e7f04c7a47063ba6993ec53c34209f4",
-      "copied_sha256": "2810416ca6477be8207edf5a60a4c0773e7f04c7a47063ba6993ec53c34209f4",
-      "bytes": 20048,
+      "original_sha256": "63e891789e13b3c9ed2f589cb44725f5be352a8f462ead12fb0029d3612aee42",
+      "copied_sha256": "63e891789e13b3c9ed2f589cb44725f5be352a8f462ead12fb0029d3612aee42",
+      "bytes": 33405,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -614,9 +614,9 @@
     },
     "tests/test_g1_training_recipes.py": {
       "original": "tests/test_g1_training_recipes.py",
-      "original_sha256": "f8c446a33e59ff090763377d2a0fba68bd17db47235bc744d340fa3ff3b100b8",
-      "copied_sha256": "f8c446a33e59ff090763377d2a0fba68bd17db47235bc744d340fa3ff3b100b8",
-      "bytes": 6365,
+      "original_sha256": "5d2f5e3a0a8c047c9f173d9af6cf9be948b8e40e8f82e82f2ffc05570bab5392",
+      "copied_sha256": "5d2f5e3a0a8c047c9f173d9af6cf9be948b8e40e8f82e82f2ffc05570bab5392",
+      "bytes": 8600,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -662,17 +662,17 @@
     },
     "Simulation_G2/period_index.py": {
       "original": "Simulation_G2/period_index.py",
-      "original_sha256": "463566dc890a956ae337b51bc3391a0d6446628f1b70ee24794ea8972671a019",
-      "copied_sha256": "463566dc890a956ae337b51bc3391a0d6446628f1b70ee24794ea8972671a019",
-      "bytes": 22420,
+      "original_sha256": "a7b40e32c0cab9013f4fd0a88f02c752c7b5fa92d540f41c0d25efa9e8c841db",
+      "copied_sha256": "a7b40e32c0cab9013f4fd0a88f02c752c7b5fa92d540f41c0d25efa9e8c841db",
+      "bytes": 29569,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G2/training_dataset.py": {
       "original": "Simulation_G2/training_dataset.py",
-      "original_sha256": "b106b91f542e720ec97690c910f1ea0111202d1d73c6a0a6d8fa4dd201c80554",
-      "copied_sha256": "b106b91f542e720ec97690c910f1ea0111202d1d73c6a0a6d8fa4dd201c80554",
-      "bytes": 16206,
+      "original_sha256": "b48e482fd6c9c705bd3bad605ad82ca98575a22a5e6425a8e2578d8e8c2e7cbf",
+      "copied_sha256": "b48e482fd6c9c705bd3bad605ad82ca98575a22a5e6425a8e2578d8e8c2e7cbf",
+      "bytes": 25892,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -694,34 +694,34 @@
     },
     "tests/test_nmm_training_dataset.py": {
       "original": "tests/test_nmm_training_dataset.py",
-      "original_sha256": "3743d455b45c78c7317ce8126ba5d6a3a41c3b34ea19123369d057281ac15e74",
-      "copied_sha256": "3743d455b45c78c7317ce8126ba5d6a3a41c3b34ea19123369d057281ac15e74",
-      "bytes": 7963,
+      "original_sha256": "d2394b7901953ab99335506fc9cfe594988dc90271cbe8fdeecb7af23416ad23",
+      "copied_sha256": "d2394b7901953ab99335506fc9cfe594988dc90271cbe8fdeecb7af23416ad23",
+      "bytes": 10040,
       "changes": [],
       "byte_identical_to_original": true
     },
     "Simulation_G1/noise_covariance.py": {
       "original": "Simulation_G1/noise_covariance.py",
+      "original_sha256": "69fc8ed0825b3a6360782f0d74d465d098ce9491cbe422ff8f6cf1f1264058d3",
+      "copied_sha256": "69fc8ed0825b3a6360782f0d74d465d098ce9491cbe422ff8f6cf1f1264058d3",
+      "bytes": 16443,
       "changes": [],
-      "original_sha256": "2472969510125d5f68273ae119fa3351ce3bd47f31075218fdd6048a03720c07",
-      "copied_sha256": "2472969510125d5f68273ae119fa3351ce3bd47f31075218fdd6048a03720c07",
-      "bytes": 10175,
       "byte_identical_to_original": true
     },
     "tests/test_noise_covariance.py": {
       "original": "tests/test_noise_covariance.py",
+      "original_sha256": "4dcb0fe3f787c686f4bb45b749538f20378f178396069503be80031b58c110cd",
+      "copied_sha256": "4dcb0fe3f787c686f4bb45b749538f20378f178396069503be80031b58c110cd",
+      "bytes": 11646,
       "changes": [],
-      "original_sha256": "5de0b07336fe17b5a644741b71fe3d5f5962b9dd2a1b75d9855ed8d233d51b68",
-      "copied_sha256": "5de0b07336fe17b5a644741b71fe3d5f5962b9dd2a1b75d9855ed8d233d51b68",
-      "bytes": 4981,
       "byte_identical_to_original": true
     },
     "tests/test_g1_noise_covariance.py": {
       "original": "tests/test_g1_noise_covariance.py",
+      "original_sha256": "3de839aefed0e76bc3f5a8e12e04f7b2f24018f4fcf957b6198b494445d3f827",
+      "copied_sha256": "3de839aefed0e76bc3f5a8e12e04f7b2f24018f4fcf957b6198b494445d3f827",
+      "bytes": 10258,
       "changes": [],
-      "original_sha256": "734e21549511846701d2942106fa4741bdb3feb2b4d57bc80a946ca033ea4c11",
-      "copied_sha256": "734e21549511846701d2942106fa4741bdb3feb2b4d57bc80a946ca033ea4c11",
-      "bytes": 10201,
       "byte_identical_to_original": true
     },
     "tests/test_nmm_noise_covariance.py": {
@@ -758,10 +758,10 @@
     },
     "Simulation_G1/spectral.py": {
       "original": "Simulation_G1/spectral.py",
+      "original_sha256": "4192c55304c7b9cd31053c474cd2548388062a680ec02ff48df1d77bb3b09626",
+      "copied_sha256": "4192c55304c7b9cd31053c474cd2548388062a680ec02ff48df1d77bb3b09626",
+      "bytes": 31695,
       "changes": [],
-      "original_sha256": "7da4271b4a3ba9e6600600edfb62250f0bc5c8216599bb83015b350a6f467177",
-      "copied_sha256": "7da4271b4a3ba9e6600600edfb62250f0bc5c8216599bb83015b350a6f467177",
-      "bytes": 18741,
       "byte_identical_to_original": true
     },
     "Simulation_G1/spectral_metrics.py": {
@@ -830,10 +830,10 @@
     },
     "tests/test_g1_spectral.py": {
       "original": "tests/test_g1_spectral.py",
+      "original_sha256": "42b0b79c2e5df65124c96f50b1f80d261fa3bf01b311d143aca8c65c1ea66215",
+      "copied_sha256": "42b0b79c2e5df65124c96f50b1f80d261fa3bf01b311d143aca8c65c1ea66215",
+      "bytes": 22432,
       "changes": [],
-      "original_sha256": "3414f22522c5ce19e06e9950d91e8426524984926eb2b6ad860f22124cb3bb67",
-      "copied_sha256": "3414f22522c5ce19e06e9950d91e8426524984926eb2b6ad860f22124cb3bb67",
-      "bytes": 16860,
       "byte_identical_to_original": true
     },
     "tests/test_g1_spectral_metrics.py": {
@@ -846,10 +846,10 @@
     },
     "tests/test_g1_spectral_cli.py": {
       "original": "tests/test_g1_spectral_cli.py",
+      "original_sha256": "88e109fd4ff1816424fc0f4c941364f2c42ecdbc009a344442c6dbe3da46819e",
+      "copied_sha256": "88e109fd4ff1816424fc0f4c941364f2c42ecdbc009a344442c6dbe3da46819e",
+      "bytes": 2260,
       "changes": [],
-      "original_sha256": "7ad3396361a8626326a840b4560a0c9f67c18f2cd12eedfae5427328e76740de",
-      "copied_sha256": "7ad3396361a8626326a840b4560a0c9f67c18f2cd12eedfae5427328e76740de",
-      "bytes": 1242,
       "byte_identical_to_original": true
     },
     "tests/test_g1_validation_data.py": {
@@ -891,21 +891,653 @@
       "copied_sha256": "cfb5ddfcfc03f531168aea196d171f575c0db5be0e685ec292f0d8c6265c2568",
       "bytes": 4153,
       "byte_identical_to_original": true
+    },
+    "resolution_benchmark/nullspace.py": {
+      "original": "resolution_benchmark/nullspace.py",
+      "original_sha256": "97bd4adf6ee62cfdcd5608fcaf406c9b42547752bfe0a31f4efc6f8b96351ccf",
+      "copied_sha256": "97bd4adf6ee62cfdcd5608fcaf406c9b42547752bfe0a31f4efc6f8b96351ccf",
+      "bytes": 8623,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_nullspace_forward.py": {
+      "original": "scripts/prepare_nullspace_forward.py",
+      "original_sha256": "5218ca08199a481d46214661123131f1bf20497063d8267f3d103943d6155313",
+      "copied_sha256": "5218ca08199a481d46214661123131f1bf20497063d8267f3d103943d6155313",
+      "bytes": 12801,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_nullspace_hdeeg.py": {
+      "original": "scripts/prepare_nullspace_hdeeg.py",
+      "original_sha256": "3f3df5e16e2cae248656b760c2bf383603feb3d53de6b464ee8c9cfcddb57c27",
+      "copied_sha256": "3f3df5e16e2cae248656b760c2bf383603feb3d53de6b464ee8c9cfcddb57c27",
+      "bytes": 10865,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/run_nullspace_study.py": {
+      "original": "scripts/run_nullspace_study.py",
+      "original_sha256": "d72597e111d7a80d1d42f404dc9fc9fc0c10d19b9e538796586b3ca380e01834",
+      "copied_sha256": "d72597e111d7a80d1d42f404dc9fc9fc0c10d19b9e538796586b3ca380e01834",
+      "bytes": 18896,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/plot_nullspace_study.py": {
+      "original": "scripts/plot_nullspace_study.py",
+      "original_sha256": "6fa61211a46b5d1018e107b77f2ff18fd099f059f9d0530351b0a1c7d081994e",
+      "copied_sha256": "6fa61211a46b5d1018e107b77f2ff18fd099f059f9d0530351b0a1c7d081994e",
+      "bytes": 3358,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_nullspace.py": {
+      "original": "tests/test_nullspace.py",
+      "original_sha256": "3ea949386075c0be68380a07916bd8ad612230dea5622931f6debf547e7e5241",
+      "copied_sha256": "3ea949386075c0be68380a07916bd8ad612230dea5622931f6debf547e7e5241",
+      "bytes": 8806,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_nullspace_design.py": {
+      "original": "tests/test_nullspace_design.py",
+      "original_sha256": "e70b76300ac59dd4d276c3fb5b7af16e2cfa44d015542307b9e8ae4779cad8fd",
+      "copied_sha256": "e70b76300ac59dd4d276c3fb5b7af16e2cfa44d015542307b9e8ae4779cad8fd",
+      "bytes": 1723,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_nullspace_hdeeg.py": {
+      "original": "tests/test_nullspace_hdeeg.py",
+      "original_sha256": "d278506755bcb92ed45a24b9120a7f45b095bc9cfbae9a8a45ac9e44ac836dfc",
+      "copied_sha256": "d278506755bcb92ed45a24b9120a7f45b095bc9cfbae9a8a45ac9e44ac836dfc",
+      "bytes": 2992,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_prepare_nullspace_forward.py": {
+      "original": "tests/test_prepare_nullspace_forward.py",
+      "original_sha256": "ea069c9cef86d5f29d91e4797af250cf373755f79555b01b3fba8e113f23f3dc",
+      "copied_sha256": "ea069c9cef86d5f29d91e4797af250cf373755f79555b01b3fba8e113f23f3dc",
+      "bytes": 3067,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "NULLSPACE_STUDY.md": {
+      "original": "NULLSPACE_STUDY.md",
+      "original_sha256": "bbff37d9ab8ffd0f5208292a8ac4363baf41cfaa07117418161d2f6576a212b7",
+      "copied_sha256": "bbff37d9ab8ffd0f5208292a8ac4363baf41cfaa07117418161d2f6576a212b7",
+      "bytes": 8277,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "resolution_benchmark/inverse_methods.py": {
+      "original": "resolution_benchmark/inverse_methods.py",
+      "original_sha256": "559208e182254a5421a0183a73eec0543e1c2ee6df147cef14c72f5fecefa02f",
+      "copied_sha256": "559208e182254a5421a0183a73eec0543e1c2ee6df147cef14c72f5fecefa02f",
+      "bytes": 10326,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "resolution_benchmark/recovery_metrics.py": {
+      "original": "resolution_benchmark/recovery_metrics.py",
+      "original_sha256": "413e3c7bf224e6a4bf71d6eb657293ac7530d2a22751810888cc298b23343ea1",
+      "copied_sha256": "413e3c7bf224e6a4bf71d6eb657293ac7530d2a22751810888cc298b23343ea1",
+      "bytes": 3431,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "resolution_benchmark/support_bases.py": {
+      "original": "resolution_benchmark/support_bases.py",
+      "original_sha256": "e67e18e1acfc329486792188921f8eb73b4772ef72905ffff290eabef19b7153",
+      "copied_sha256": "e67e18e1acfc329486792188921f8eb73b4772ef72905ffff290eabef19b7153",
+      "bytes": 14242,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_nullspace_bases.py": {
+      "original": "scripts/prepare_nullspace_bases.py",
+      "original_sha256": "e7b3a1e61b0e73a794e9def73875f7e18b59902541429d26ad99cfb32b2cfb1c",
+      "copied_sha256": "e7b3a1e61b0e73a794e9def73875f7e18b59902541429d26ad99cfb32b2cfb1c",
+      "bytes": 1105,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/run_nullspace_methods.py": {
+      "original": "scripts/run_nullspace_methods.py",
+      "original_sha256": "8b08e0241c91c4ecc08d921c5ae52edf018fb6ecc184c71ca39734768ce6c65c",
+      "copied_sha256": "8b08e0241c91c4ecc08d921c5ae52edf018fb6ecc184c71ca39734768ce6c65c",
+      "bytes": 20039,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/summarize_nullspace_methods.py": {
+      "original": "scripts/summarize_nullspace_methods.py",
+      "original_sha256": "2e423b5bf2d421483102d1e6c69118968b266a0ca0041bdbdbbf1665acd9771a",
+      "copied_sha256": "2e423b5bf2d421483102d1e6c69118968b266a0ca0041bdbdbbf1665acd9771a",
+      "bytes": 3682,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/plot_nullspace_methods.py": {
+      "original": "scripts/plot_nullspace_methods.py",
+      "original_sha256": "8fd3efd0fc37600983ace5049aeead09a2240b0a21ca3fd75c23017ad49d62b1",
+      "copied_sha256": "8fd3efd0fc37600983ace5049aeead09a2240b0a21ca3fd75c23017ad49d62b1",
+      "bytes": 4834,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/run_nullspace_dynamics.py": {
+      "original": "scripts/run_nullspace_dynamics.py",
+      "original_sha256": "b4498bfb136c781306fd53482098890ac2629464f7accb5ef4fccc1f16ff125e",
+      "copied_sha256": "b4498bfb136c781306fd53482098890ac2629464f7accb5ef4fccc1f16ff125e",
+      "bytes": 12143,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_inverse_methods.py": {
+      "original": "tests/test_inverse_methods.py",
+      "original_sha256": "f9036212d91b2cb7e17adc54f01c70503dfb34e360fc369e68b253d8defabecb",
+      "copied_sha256": "f9036212d91b2cb7e17adc54f01c70503dfb34e360fc369e68b253d8defabecb",
+      "bytes": 7555,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_recovery_metrics.py": {
+      "original": "tests/test_recovery_metrics.py",
+      "original_sha256": "2cf43904144438dee03a30ae75acc8241f155ec87ded55eaaefa81b843376b53",
+      "copied_sha256": "2cf43904144438dee03a30ae75acc8241f155ec87ded55eaaefa81b843376b53",
+      "bytes": 2230,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_support_bases.py": {
+      "original": "tests/test_support_bases.py",
+      "original_sha256": "64d646c6730836e20e21fbf41fe77e5805e02849a1abfe465e0c5b82f1d4ec50",
+      "copied_sha256": "64d646c6730836e20e21fbf41fe77e5805e02849a1abfe465e0c5b82f1d4ec50",
+      "bytes": 4028,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_nullspace_methods_design.py": {
+      "original": "tests/test_nullspace_methods_design.py",
+      "original_sha256": "170368bdedcafd7156b9aa0748f05b53623456d0391b1b853bdbbdee17354452",
+      "copied_sha256": "170368bdedcafd7156b9aa0748f05b53623456d0391b1b853bdbbdee17354452",
+      "bytes": 1832,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_nullspace_dynamics.py": {
+      "original": "tests/test_nullspace_dynamics.py",
+      "original_sha256": "adaf9e8cbe8ff3d4b887e05c79532465613df94b8710c4a31ac979b305e81e10",
+      "copied_sha256": "adaf9e8cbe8ff3d4b887e05c79532465613df94b8710c4a31ac979b305e81e10",
+      "bytes": 2530,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "NULLSPACE_METHODS_STUDY.md": {
+      "original": "NULLSPACE_METHODS_STUDY.md",
+      "original_sha256": "de1dc83623ed701cfd8298256885717f7e2ac22c5c8a2d2a73e48068fba1491d",
+      "copied_sha256": "de1dc83623ed701cfd8298256885717f7e2ac22c5c8a2d2a73e48068fba1491d",
+      "bytes": 14527,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "GENERATION_REALISM_UPDATE.md": {
+      "original": "GENERATION_REALISM_UPDATE.md",
+      "original_sha256": "ecd81dfbc473be95526b57059bbeada699b61803bcd85a9b359a2d717ec3c45e",
+      "copied_sha256": "ecd81dfbc473be95526b57059bbeada699b61803bcd85a9b359a2d717ec3c45e",
+      "bytes": 8532,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/cortical.py": {
+      "original": "Simulation_G1/cortical.py",
+      "original_sha256": "492b55556ba8785c7f3bce86d065989387550d9f7568885cba538ec7010d2f19",
+      "copied_sha256": "492b55556ba8785c7f3bce86d065989387550d9f7568885cba538ec7010d2f19",
+      "bytes": 3717,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/realistic_background.example.json": {
+      "original": "Simulation_G1/realistic_background.example.json",
+      "original_sha256": "2db658627ea3c2d43b44eeb3713b619b44cf8ab463ec76cb075cc850e92e3755",
+      "copied_sha256": "2db658627ea3c2d43b44eeb3713b619b44cf8ab463ec76cb075cc850e92e3755",
+      "bytes": 320,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G2/realistic_nmm.example.json": {
+      "original": "Simulation_G2/realistic_nmm.example.json",
+      "original_sha256": "2fb5809001c34f93517ad6fdf399a1d98c1fc20cae6ffe560eaf167dddb45931",
+      "copied_sha256": "2fb5809001c34f93517ad6fdf399a1d98c1fc20cae6ffe560eaf167dddb45931",
+      "bytes": 565,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "network_cluster_utils.py": {
+      "original": "network_cluster_utils.py",
+      "original_sha256": "cd738786bede21112813e48890b662821297310bfc58d1e61edb912f2c3ac259",
+      "copied_sha256": "cd738786bede21112813e48890b662821297310bfc58d1e61edb912f2c3ac259",
+      "bytes": 2427,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "neurovault_400_clusters.py": {
+      "original": "neurovault_400_clusters.py",
+      "original_sha256": "d6349a8448d9827540fda757c70d4597cf2bf97e74fc2b4c2d006081e1be21ca",
+      "copied_sha256": "d6349a8448d9827540fda757c70d4597cf2bf97e74fc2b4c2d006081e1be21ca",
+      "bytes": 10827,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "neurovault_data_cluster.py": {
+      "original": "neurovault_data_cluster.py",
+      "original_sha256": "4ed34c1459cd6e12c2bd70b944d7fe7fdf3ee8eb8252e4f03d46d17657daccc4",
+      "copied_sha256": "4ed34c1459cd6e12c2bd70b944d7fe7fdf3ee8eb8252e4f03d46d17657daccc4",
+      "bytes": 13000,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_aal_membership.py": {
+      "original": "tests/test_aal_membership.py",
+      "original_sha256": "c929d43cb5cc297eb9b2307302d6a0fa2f54efb526b7b3c719928e3d601e3b49",
+      "copied_sha256": "c929d43cb5cc297eb9b2307302d6a0fa2f54efb526b7b3c719928e3d601e3b49",
+      "bytes": 7229,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_cortical_mask.py": {
+      "original": "tests/test_cortical_mask.py",
+      "original_sha256": "8db0fce47d087a3140457c22fbe7739652beab760c16107597080ac780814a9f",
+      "copied_sha256": "8db0fce47d087a3140457c22fbe7739652beab760c16107597080ac780814a9f",
+      "bytes": 5310,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_realism.py": {
+      "original": "tests/test_g1_realism.py",
+      "original_sha256": "c3e22df491e9336109ed7b13cc89bcc9961922b7ec0e6f92f65892e12575072d",
+      "copied_sha256": "c3e22df491e9336109ed7b13cc89bcc9961922b7ec0e6f92f65892e12575072d",
+      "bytes": 4326,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g4_drive.py": {
+      "original": "tests/test_g4_drive.py",
+      "original_sha256": "ca148ea934cc722bba60cb295b9d96fbfaf3c714f5ec788de17e5f3db62451bf",
+      "copied_sha256": "ca148ea934cc722bba60cb295b9d96fbfaf3c714f5ec788de17e5f3db62451bf",
+      "bytes": 6719,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_network_cluster_safety.py": {
+      "original": "tests/test_network_cluster_safety.py",
+      "original_sha256": "2f38902b7e71caf95dd81d22ad8c8d7205c161f3df85f2ec7969d70bd4724a36",
+      "copied_sha256": "2f38902b7e71caf95dd81d22ad8c8d7205c161f3df85f2ec7969d70bd4724a36",
+      "bytes": 4392,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "GEOMETRY_UNITS_OBSERVABILITY.md": {
+      "original": "GEOMETRY_UNITS_OBSERVABILITY.md",
+      "original_sha256": "281f8438aa6f7465452b73b6e41ce7c459cf3d280f0ca4c8809f8ad4fcb2ff93",
+      "copied_sha256": "281f8438aa6f7465452b73b6e41ce7c459cf3d280f0ca4c8809f8ad4fcb2ff93",
+      "bytes": 9358,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/amplitude.py": {
+      "original": "Simulation_G1/amplitude.py",
+      "original_sha256": "c9d534198d9cbed693b5829c5381da8201f5e450e653dbba70f09df9d2c7bd15",
+      "copied_sha256": "c9d534198d9cbed693b5829c5381da8201f5e450e653dbba70f09df9d2c7bd15",
+      "bytes": 12143,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/geodesic.py": {
+      "original": "Simulation_G1/geodesic.py",
+      "original_sha256": "acaad32a174706d195044e63dd6716a2a547d64775c8532ce07e116a1e5507b9",
+      "copied_sha256": "acaad32a174706d195044e63dd6716a2a547d64775c8532ce07e116a1e5507b9",
+      "bytes": 6508,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/observability.py": {
+      "original": "Simulation_G1/observability.py",
+      "original_sha256": "1e2f626b8a750e062dc3358130672f2bc2da1f2837a430fd939f7b290078e80f",
+      "copied_sha256": "1e2f626b8a750e062dc3358130672f2bc2da1f2837a430fd939f7b290078e80f",
+      "bytes": 13408,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g4_observability.py": {
+      "original": "tests/test_g4_observability.py",
+      "original_sha256": "e0f6d7a1e954332cb837b43247103c9c5b4df3aed496c229397164b222498307",
+      "copied_sha256": "e0f6d7a1e954332cb837b43247103c9c5b4df3aed496c229397164b222498307",
+      "bytes": 5370,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_geodesic_patches.py": {
+      "original": "tests/test_geodesic_patches.py",
+      "original_sha256": "3a3b62d13c91224241820b73e0449f52e36fca6465ca1e11bfc22623fcdb1b70",
+      "copied_sha256": "3a3b62d13c91224241820b73e0449f52e36fca6465ca1e11bfc22623fcdb1b70",
+      "bytes": 6236,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_observability_labels.py": {
+      "original": "tests/test_observability_labels.py",
+      "original_sha256": "9e2dae5358b1020026d33fd4ff8f983556abb29096445a20263f0b8a3f1455b3",
+      "copied_sha256": "9e2dae5358b1020026d33fd4ff8f983556abb29096445a20263f0b8a3f1455b3",
+      "bytes": 7389,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_physical_amplitude.py": {
+      "original": "tests/test_physical_amplitude.py",
+      "original_sha256": "d4fb96b88d070a48d10dd280ea0514eba8ecdb7f3b78d1f64da3144236c6e0d7",
+      "copied_sha256": "d4fb96b88d070a48d10dd280ea0514eba8ecdb7f3b78d1f64da3144236c6e0d7",
+      "bytes": 9450,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_physical_generation.py": {
+      "original": "tests/test_physical_generation.py",
+      "original_sha256": "642eac1209bdde40987827e9803f971324cd8ce4e548dd167c43e69606b6c0c8",
+      "copied_sha256": "642eac1209bdde40987827e9803f971324cd8ce4e548dd167c43e69606b6c0c8",
+      "bytes": 5669,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "MULTISCALE_REAL_NOISE.md": {
+      "original": "MULTISCALE_REAL_NOISE.md",
+      "original_sha256": "5ff4ca08e60984d931d1d12a74032c082e0714aae9f024583fc6d051f2d9fa60",
+      "copied_sha256": "5ff4ca08e60984d931d1d12a74032c082e0714aae9f024583fc6d051f2d9fa60",
+      "bytes": 9750,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/multiscale.py": {
+      "original": "Simulation_G1/multiscale.py",
+      "original_sha256": "3caea4738743724e22de95157cc082b34dc0715ccc29454478f41d05959af7ea",
+      "copied_sha256": "3caea4738743724e22de95157cc082b34dc0715ccc29454478f41d05959af7ea",
+      "bytes": 10740,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/real_noise.py": {
+      "original": "Simulation_G1/real_noise.py",
+      "original_sha256": "31ad98ebf2082fb0daf8f2b19a141938866942243797b5dba298aa11baf24e25",
+      "copied_sha256": "31ad98ebf2082fb0daf8f2b19a141938866942243797b5dba298aa11baf24e25",
+      "bytes": 19557,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/prepare_real_noise.py": {
+      "original": "scripts/prepare_real_noise.py",
+      "original_sha256": "937f5c174b50d65b475acdd0cdd4e133ad45037d65012d0ed165d3f8c05c6346",
+      "copied_sha256": "937f5c174b50d65b475acdd0cdd4e133ad45037d65012d0ed165d3f8c05c6346",
+      "bytes": 13921,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_component_export.py": {
+      "original": "tests/test_g1_component_export.py",
+      "original_sha256": "5bf23de0a2b90badc646651482696f1b26463f8079b8accd1c8755e84d2d7815",
+      "copied_sha256": "5bf23de0a2b90badc646651482696f1b26463f8079b8accd1c8755e84d2d7815",
+      "bytes": 3878,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_multiscale_residual.py": {
+      "original": "tests/test_multiscale_residual.py",
+      "original_sha256": "e68eef40c02eaf382a367e260794a08d6126c7689d3dad292f15e8684f595418",
+      "copied_sha256": "e68eef40c02eaf382a367e260794a08d6126c7689d3dad292f15e8684f595418",
+      "bytes": 5712,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_multiscale_spectral.py": {
+      "original": "tests/test_multiscale_spectral.py",
+      "original_sha256": "9f4d9665cf88a5061f1928bc448d327605f130753f6510616492daad2b0edc0b",
+      "copied_sha256": "9f4d9665cf88a5061f1928bc448d327605f130753f6510616492daad2b0edc0b",
+      "bytes": 7778,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_prepare_real_noise.py": {
+      "original": "tests/test_prepare_real_noise.py",
+      "original_sha256": "c3300626b4632c19214c78f1d18f675aaeef3e013dce50dd25587cedec679478",
+      "copied_sha256": "c3300626b4632c19214c78f1d18f675aaeef3e013dce50dd25587cedec679478",
+      "bytes": 5617,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_real_noise_registry.py": {
+      "original": "tests/test_real_noise_registry.py",
+      "original_sha256": "5eed510a0d630486afa06f5661b8071fe4ed54614a4d57ac32702c48675366b7",
+      "copied_sha256": "5eed510a0d630486afa06f5661b8071fe4ed54614a4d57ac32702c48675366b7",
+      "bytes": 8609,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_registered_g1_noise.py": {
+      "original": "tests/test_registered_g1_noise.py",
+      "original_sha256": "31a20d159f2bb03d7a8d07820d213d60b2653de3dfa8bcf52087a15c69837102",
+      "copied_sha256": "31a20d159f2bb03d7a8d07820d213d60b2653de3dfa8bcf52087a15c69837102",
+      "bytes": 5295,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_registered_nmm_noise.py": {
+      "original": "tests/test_registered_nmm_noise.py",
+      "original_sha256": "2ddf126d72fcc9f187aac15300ba5524ea95f07ef46604df7ef59f9d5410eec9",
+      "copied_sha256": "2ddf126d72fcc9f187aac15300ba5524ea95f07ef46604df7ef59f9d5410eec9",
+      "bytes": 12695,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_registered_noise_recipes.py": {
+      "original": "tests/test_registered_noise_recipes.py",
+      "original_sha256": "93b764a7fd2de99cccf0f489b9a74fbf8d22de751f3922ff3557982c83aebf7a",
+      "copied_sha256": "93b764a7fd2de99cccf0f489b9a74fbf8d22de751f3922ff3557982c83aebf7a",
+      "bytes": 10962,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "PRODUCTION_SAMPLE_INTERFACE.md": {
+      "original": "PRODUCTION_SAMPLE_INTERFACE.md",
+      "original_sha256": "625f8974d4dbe0fba3d8d84914ec9b2b874f108ef00e5678c32a28de2ce276e0",
+      "copied_sha256": "625f8974d4dbe0fba3d8d84914ec9b2b874f108ef00e5678c32a28de2ce276e0",
+      "bytes": 8523,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/sample_io.py": {
+      "original": "Simulation_G1/sample_io.py",
+      "original_sha256": "f6643b5bafe8b9b3b7fa2fca21e007d15a2e68cf3935b45c8d980f0745c9ce9c",
+      "copied_sha256": "f6643b5bafe8b9b3b7fa2fca21e007d15a2e68cf3935b45c8d980f0745c9ce9c",
+      "bytes": 8683,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_noise_reader_cache.py": {
+      "original": "tests/test_noise_reader_cache.py",
+      "original_sha256": "e6fdc0f520051b1910667d03f375894faed8c768fd403ebc8619b8965dc361f3",
+      "copied_sha256": "e6fdc0f520051b1910667d03f375894faed8c768fd403ebc8619b8965dc361f3",
+      "bytes": 6800,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_production_g1_sample.py": {
+      "original": "tests/test_production_g1_sample.py",
+      "original_sha256": "2120e04ecf852a998a4bb5a4bee4ce4953122d221d764d686b75e42617622225",
+      "copied_sha256": "2120e04ecf852a998a4bb5a4bee4ce4953122d221d764d686b75e42617622225",
+      "bytes": 5835,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_production_geometry.py": {
+      "original": "tests/test_production_geometry.py",
+      "original_sha256": "65a02f5100381f3436c13d448df3a3b489dda6d9645581eb578c552738f043e8",
+      "copied_sha256": "65a02f5100381f3436c13d448df3a3b489dda6d9645581eb578c552738f043e8",
+      "bytes": 2560,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_production_nmm_snr.py": {
+      "original": "tests/test_production_nmm_snr.py",
+      "original_sha256": "75a115d350397313b8dcd729a3d98fa87871cdcdbabe7a71a999e5abcf0b0aaa",
+      "copied_sha256": "75a115d350397313b8dcd729a3d98fa87871cdcdbabe7a71a999e5abcf0b0aaa",
+      "bytes": 13046,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_transactional_samples.py": {
+      "original": "tests/test_transactional_samples.py",
+      "original_sha256": "dcab0f7ae7d6fe2f3c9df380d60253b27eaa101909126d809d3ac2bc2c09d9d3",
+      "copied_sha256": "dcab0f7ae7d6fe2f3c9df380d60253b27eaa101909126d809d3ac2bc2c09d9d3",
+      "bytes": 6980,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "G4_UNIFIED_EXPORT.md": {
+      "original": "G4_UNIFIED_EXPORT.md",
+      "original_sha256": "854cf87525e7271669704453b86f9eefc30fde9989785eaf17a5129861fad88c",
+      "copied_sha256": "854cf87525e7271669704453b86f9eefc30fde9989785eaf17a5129861fad88c",
+      "bytes": 4670,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G4/export_nmm.py": {
+      "original": "Simulation_G4/export_nmm.py",
+      "original_sha256": "cd1dbca6a9bc6f1334a9d0f48a026daebd2fffdfe1e6beb9f29578a5995534f6",
+      "copied_sha256": "cd1dbca6a9bc6f1334a9d0f48a026daebd2fffdfe1e6beb9f29578a5995534f6",
+      "bytes": 15462,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G4/provenance.py": {
+      "original": "Simulation_G4/provenance.py",
+      "original_sha256": "3b5d80d04aa0e32635361814bdd6d75aa65ecf2829dda387d4e41e95bc7abd76",
+      "copied_sha256": "3b5d80d04aa0e32635361814bdd6d75aa65ecf2829dda387d4e41e95bc7abd76",
+      "bytes": 3779,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g4_export_ancestry.py": {
+      "original": "tests/test_g4_export_ancestry.py",
+      "original_sha256": "28b06a6fe4debc67c21436b9fc7317664553674f7e19a57c747e2bd294fe794e",
+      "copied_sha256": "28b06a6fe4debc67c21436b9fc7317664553674f7e19a57c747e2bd294fe794e",
+      "bytes": 7127,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g4_export_nmm.py": {
+      "original": "tests/test_g4_export_nmm.py",
+      "original_sha256": "acbdd50bd5613b0f928f27ee41bc61b5b13008a0c93398b65aedc742bece5490",
+      "copied_sha256": "acbdd50bd5613b0f928f27ee41bc61b5b13008a0c93398b65aedc742bece5490",
+      "bytes": 10488,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "G4_REFRESH_RESULTS.md": {
+      "original": "G4_REFRESH_RESULTS.md",
+      "original_sha256": "d1612d0a1161d2f61dabc6b5b5a9d8022318cb0390a5a6b6eb006b85d0ae6a21",
+      "copied_sha256": "d1612d0a1161d2f61dabc6b5b5a9d8022318cb0390a5a6b6eb006b85d0ae6a21",
+      "bytes": 5335,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "OPTIMIZATION_RESULTS.md": {
+      "original": "OPTIMIZATION_RESULTS.md",
+      "original_sha256": "d15ec604192429ba7a27261b2e3c61a3a503707dbf40dc7fb4d8b97af4fd0f76",
+      "copied_sha256": "d15ec604192429ba7a27261b2e3c61a3a503707dbf40dc7fb4d8b97af4fd0f76",
+      "bytes": 5044,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "QUALITY_AND_TRAINING_POLICY.md": {
+      "original": "QUALITY_AND_TRAINING_POLICY.md",
+      "original_sha256": "6f3d396fae0437807be99a63ad33ec2a614f7c10cd16320002536db47baa83ce",
+      "copied_sha256": "6f3d396fae0437807be99a63ad33ec2a614f7c10cd16320002536db47baa83ce",
+      "bytes": 5580,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/quality.py": {
+      "original": "Simulation_G1/quality.py",
+      "original_sha256": "0094d677fa332b38c9a17b3a07e5256b500e88d20fe8c7612bca947cdcff7be6",
+      "copied_sha256": "0094d677fa332b38c9a17b3a07e5256b500e88d20fe8c7612bca947cdcff7be6",
+      "bytes": 22821,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/training_recipe.production.json": {
+      "original": "Simulation_G1/training_recipe.production.json",
+      "original_sha256": "9f76d641ac661b4c844e207ab2e4a85a7ae37f36dcba76bdd2d4520f434ab606",
+      "copied_sha256": "9f76d641ac661b4c844e207ab2e4a85a7ae37f36dcba76bdd2d4520f434ab606",
+      "bytes": 713,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/audit_training_recipes.py": {
+      "original": "scripts/audit_training_recipes.py",
+      "original_sha256": "8b86a6bb3345f8555f6e00ac724d45959f4ad157979c99b264c00b974228c8a3",
+      "copied_sha256": "8b86a6bb3345f8555f6e00ac724d45959f4ad157979c99b264c00b974228c8a3",
+      "bytes": 12006,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g4_registered_training_noise.py": {
+      "original": "tests/test_g4_registered_training_noise.py",
+      "original_sha256": "09ffbd290c1a2a0eaca425b26af1debede60fbe2482e697b7ab714ba5a346281",
+      "copied_sha256": "09ffbd290c1a2a0eaca425b26af1debede60fbe2482e697b7ab714ba5a346281",
+      "bytes": 12337,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_production_defaults.py": {
+      "original": "tests/test_production_defaults.py",
+      "original_sha256": "e776e7b42d04e644f555d9ec27c573e4585400dc241ce14c19e5cea4342ed85e",
+      "copied_sha256": "e776e7b42d04e644f555d9ec27c573e4585400dc241ce14c19e5cea4342ed85e",
+      "bytes": 1371,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_production_recipe_policy.py": {
+      "original": "tests/test_production_recipe_policy.py",
+      "original_sha256": "d254be4d0536aa17773ca0b6028f8a31d7034c23c485d00b27c1660f079c365e",
+      "copied_sha256": "d254be4d0536aa17773ca0b6028f8a31d7034c23c485d00b27c1660f079c365e",
+      "bytes": 5370,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_sample_quality.py": {
+      "original": "tests/test_sample_quality.py",
+      "original_sha256": "dd2dded58e05a737b526a7f0457e8806146dcc68510b52dc45b6b2b97d3f305a",
+      "copied_sha256": "dd2dded58e05a737b526a7f0457e8806146dcc68510b52dc45b6b2b97d3f305a",
+      "bytes": 10652,
+      "changes": [],
+      "byte_identical_to_original": true
     }
   },
-  "completed_at": "2026-10-28T17:57:15.509173+00:00",
+  "completed_at": "2026-10-30T19:39:18.314595+00:00",
   "added_files": {
     ".gitignore": {
       "sha256": "24a43e8fc01e1cfb27d1a2635a7b5330a58a5a8537450ff4e76dcbd9cb82d1cf",
       "bytes": 166
     },
     "EXTERNAL_ASSETS.md": {
-      "sha256": "fe92ded2a401f267d1367837b88ea2f9c02b2ee458bcd31c6b179572acf86ddc",
-      "bytes": 3493
+      "sha256": "eda40b0603061421ad77ee08be1a83c431624a9b17b636da77238d21bb5933f9",
+      "bytes": 4040
     },
     "README.md": {
-      "sha256": "94ee1939fcb29bf9e5e5dec1fb01fbf4114e9f28b2cb9e2983e7b8f6f426a5c3",
-      "bytes": 4481
+      "sha256": "aec5ffd2a346b2e4d2578eb9f7094c4d285556acd642d945eaf7bee5ac9de1c4",
+      "bytes": 5512
     },
     "requirements.txt": {
       "sha256": "0a70ba3e8774da01cfa4f378ff0570084a6b00a83cdadd060e85563fa9ff3235",
@@ -920,8 +1552,8 @@
       "bytes": 420
     },
     "VALIDATION.md": {
-      "sha256": "28261d52834d5ed025a381c661f834863d3dbb4678f97ab9f06344c302ae0c9b",
-      "bytes": 15501
+      "sha256": "91adc3778a94faf01a470e21d484fa2fe30fc494bd87622a6e90a25e736e690c",
+      "bytes": 25581
     },
     ".gitattributes": {
       "sha256": "97c8ed12200329359dd22869ad29ce96d5b8600d5b97a6cf04598f83892488dd",
@@ -929,7 +1561,7 @@
     }
   },
   "validation": {
-    "tests": 338,
+    "tests": 469,
     "failures": 0,
     "errors": 0,
     "skipped": [
@@ -966,6 +1598,14 @@
         "reason": "Local atlas not built"
       },
       {
+        "test": "test_g4_atlas.AtlasTests.test_actual_membership_view_keeps_geometry_and_recomputes_forward",
+        "reason": "Local membership view not built"
+      },
+      {
+        "test": "test_prepare_nullspace_forward.RealForwardExportTests.test_local_export_alignment_projection_and_cache_identity",
+        "reason": "Run scripts/prepare_nullspace_forward.py for the optional public fixture"
+      },
+      {
         "test": "test_simulation_pipeline.PipelineTests.test_real_high_level_engines",
         "reason": "Optional local anatomy/NMM/TVB integration"
       }
@@ -987,8 +1627,8 @@
     "external_anatomy_present": false,
     "source_root_on_import_path": false
   },
-  "python_files": 90,
-  "copied_files_count": 105,
+  "python_files": 156,
+  "copied_files_count": 184,
   "spatial_update": {
     "date": "2026-10-20",
     "files": [
@@ -1334,5 +1974,452 @@
       "skipped": 9
     },
     "validation_limits": "No full NiMARE rebuild or retrospective registration repair; historical coactive remains unverified"
+  },
+  "nullspace_update": {
+    "date": "2026-10-31",
+    "files": [
+      "resolution_benchmark/nullspace.py",
+      "scripts/prepare_nullspace_forward.py",
+      "scripts/prepare_nullspace_hdeeg.py",
+      "scripts/run_nullspace_study.py",
+      "scripts/plot_nullspace_study.py",
+      "tests/test_nullspace.py",
+      "tests/test_nullspace_design.py",
+      "tests/test_nullspace_hdeeg.py",
+      "tests/test_prepare_nullspace_forward.py",
+      "NULLSPACE_STUDY.md"
+    ],
+    "root_tests": {
+      "total": 366,
+      "passed": 364,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 359,
+      "passed": 349,
+      "skipped": 10,
+      "failures": 0,
+      "errors": 0
+    },
+    "byte_identical_files": 10,
+    "validation_report": ".omx/diagnostics/clean_copy_validation/results.json",
+    "generated_assets_copied": false,
+    "pilot_configurations": 468,
+    "artifact_projection_and_null_perturbation_residual_bound": 5e-15,
+    "remote_pushed": false
+  },
+  "nullspace_methods_update": {
+    "date": "2026-10-31",
+    "files": [
+      "resolution_benchmark/inverse_methods.py",
+      "resolution_benchmark/recovery_metrics.py",
+      "resolution_benchmark/support_bases.py",
+      "scripts/prepare_nullspace_bases.py",
+      "scripts/run_nullspace_methods.py",
+      "scripts/summarize_nullspace_methods.py",
+      "scripts/plot_nullspace_methods.py",
+      "scripts/run_nullspace_dynamics.py",
+      "tests/test_inverse_methods.py",
+      "tests/test_recovery_metrics.py",
+      "tests/test_support_bases.py",
+      "tests/test_nullspace_methods_design.py",
+      "tests/test_nullspace_dynamics.py",
+      "NULLSPACE_METHODS_STUDY.md"
+    ],
+    "byte_identical_files": 14,
+    "root_tests": {
+      "total": 397,
+      "passed": 395,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    "copy_tests": {
+      "total": 390,
+      "passed": 380,
+      "skipped": 10,
+      "failures": 0,
+      "errors": 0
+    },
+    "generated_assets_copied": false,
+    "remote_pushed": false,
+    "validation_report": ".omx/diagnostics/clean_copy_validation/results.json",
+    "method_support_estimates": 4850,
+    "dynamics_configurations": 96,
+    "sbl_unconverged_after_refinement": 0
+  },
+  "correctness_realism_update": {
+    "date": "2026-10-31",
+    "files": [
+      "GENERATION_REALISM_UPDATE.md",
+      "NMM_USAGE.md",
+      "Simulation_G1/G1_usage_guide.md",
+      "Simulation_G1/cortical.py",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/noise_covariance.py",
+      "Simulation_G1/realistic_background.example.json",
+      "Simulation_G1/spectral.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G2/g2_simulation_core.py",
+      "Simulation_G2/nmm_mixing.py",
+      "Simulation_G2/period_index.py",
+      "Simulation_G2/realistic_nmm.example.json",
+      "Simulation_G2/training_dataset.py",
+      "Simulation_G3/atlas_profiles.py",
+      "Simulation_G3/prepare_aal_tvb.py",
+      "Simulation_G4/README.md",
+      "Simulation_G4/atlas.py",
+      "Simulation_G4/bank.py",
+      "Simulation_G4/pipeline.py",
+      "Simulation_G4/simulator.py",
+      "network_cluster_utils.py",
+      "neurovault_400_clusters.py",
+      "neurovault_data_cluster.py",
+      "nmm_simulation.py",
+      "simulate_source_sensor.py",
+      "tests/test_aal_membership.py",
+      "tests/test_cortical_mask.py",
+      "tests/test_g1_realism.py",
+      "tests/test_g1_spectral.py",
+      "tests/test_g4_atlas.py",
+      "tests/test_g4_drive.py",
+      "tests/test_g4_pipeline.py",
+      "tests/test_network_cluster_safety.py",
+      "tests/test_nmm_mixing.py",
+      "tests/test_nmm_training_dataset.py",
+      "tests/test_noise_covariance.py",
+      "tests/test_unified_nmm.py"
+    ],
+    "root_tests": {
+      "total": 442,
+      "passed": 440,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 434,
+      "passed": 423,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "derived_anatomy_copied": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "period_schema": "nmm-periods-v2",
+    "baseline_duration_s": 2.0,
+    "numerical_validation": ".omx/diagnostics/realism_release_validation.json",
+    "source_snr_default": "vertex_mean",
+    "validation_summary": "G1 ERP diversity/cortex/background + actual AAL NMM + G4 drives + MEG holdout covariance"
+  },
+  "geometry_units_observability_update": {
+    "date": "2026-11-01",
+    "files": [
+      "GENERATION_REALISM_UPDATE.md",
+      "GEOMETRY_UNITS_OBSERVABILITY.md",
+      "NMM_USAGE.md",
+      "Simulation_G1/G1_usage_guide.md",
+      "Simulation_G1/amplitude.py",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/geodesic.py",
+      "Simulation_G1/observability.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G2/g2_simulation_core.py",
+      "Simulation_G2/nmm_mixing.py",
+      "Simulation_G2/period_index.py",
+      "Simulation_G2/training_dataset.py",
+      "Simulation_G4/README.md",
+      "Simulation_G4/pipeline.py",
+      "nmm_simulation.py",
+      "simulate_source_sensor.py",
+      "tests/test_g1_training_recipes.py",
+      "tests/test_g4_observability.py",
+      "tests/test_geodesic_patches.py",
+      "tests/test_nmm_training_dataset.py",
+      "tests/test_observability_labels.py",
+      "tests/test_physical_amplitude.py",
+      "tests/test_physical_generation.py"
+    ],
+    "root_tests": {
+      "total": 477,
+      "passed": 475,
+      "skipped": 2
+    },
+    "copy_tests": {
+      "total": 469,
+      "passed": 458,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "period_schema": "nmm-periods-v3",
+    "default_patch_geometry": "geodesic",
+    "physical_amplitude_opt_in": true,
+    "observability_opt_in": true,
+    "new_dependencies": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "real_asset_validation": ".omx/diagnostics/geometry_units_release_validation.json"
+  },
+  "multiscale_real_noise_update": {
+    "date": "2026-11-01",
+    "files": [
+      "MULTISCALE_REAL_NOISE.md",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/multiscale.py",
+      "Simulation_G1/real_noise.py",
+      "Simulation_G1/spectral.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G2/period_index.py",
+      "Simulation_G2/training_dataset.py",
+      "nmm_simulation.py",
+      "scripts/prepare_real_noise.py",
+      "simulate_source_sensor.py",
+      "tests/test_g1_component_export.py",
+      "tests/test_g1_spectral_cli.py",
+      "tests/test_multiscale_residual.py",
+      "tests/test_multiscale_spectral.py",
+      "tests/test_prepare_real_noise.py",
+      "tests/test_real_noise_registry.py",
+      "tests/test_registered_g1_noise.py",
+      "tests/test_registered_nmm_noise.py",
+      "tests/test_registered_noise_recipes.py"
+    ],
+    "residual_opt_in": true,
+    "real_noise_opt_in": true,
+    "baseline_duration_s": 2.0,
+    "g1_resource_recipe_schema": "g1-recipes-v2",
+    "nmm_resource_period_schema": "nmm-periods-v4",
+    "root_tests": {
+      "total": 531,
+      "passed": 529,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    "copy_tests": {
+      "total": 523,
+      "passed": 512,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "new_dependencies": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "real_asset_validations": [
+      ".omx/diagnostics/multiscale_fs5_validation.json",
+      "generated_simulation_dataset/real_noise_validation/g1_smoke/summary.json"
+    ],
+    "validation_complete": true,
+    "static_checks": "AST parse of all changed Python modules; full copied/source hashes verified",
+    "unavailable_checks": [
+      "ruff",
+      "mypy"
+    ],
+    "known_warning": "TVB optional geodesic extension absent"
+  },
+  "production_contract_update": {
+    "date": "2026-11-01",
+    "files": [
+      "MULTISCALE_REAL_NOISE.md",
+      "PRODUCTION_SAMPLE_INTERFACE.md",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/geodesic.py",
+      "Simulation_G1/real_noise.py",
+      "Simulation_G1/sample_io.py",
+      "Simulation_G1/spectral.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G2/nmm_mixing.py",
+      "Simulation_G2/period_index.py",
+      "Simulation_G2/training_dataset.py",
+      "nmm_simulation.py",
+      "scripts/prepare_real_noise.py",
+      "simulate_source_sensor.py",
+      "tests/test_g1_component_export.py",
+      "tests/test_g1_noise_covariance.py",
+      "tests/test_g1_training_recipes.py",
+      "tests/test_multiscale_spectral.py",
+      "tests/test_nmm_mixing.py",
+      "tests/test_nmm_training_dataset.py",
+      "tests/test_noise_reader_cache.py",
+      "tests/test_production_g1_sample.py",
+      "tests/test_production_geometry.py",
+      "tests/test_production_nmm_snr.py",
+      "tests/test_registered_g1_noise.py",
+      "tests/test_registered_nmm_noise.py",
+      "tests/test_registered_noise_recipes.py",
+      "tests/test_spatial_entrypoints.py",
+      "tests/test_transactional_samples.py",
+      "tests/test_unified_nmm.py"
+    ],
+    "sample_schema": "esi-sample-v1",
+    "g1_recipe_schema": "g1-recipes-v3",
+    "period_schema": "nmm-periods-v5",
+    "default_sensor_snr_mode": "active_rms",
+    "baseline_duration_s": 2.0,
+    "root_tests": {
+      "total": 568,
+      "passed": 566,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    "copy_tests": {
+      "total": 560,
+      "passed": 549,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "new_dependencies": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "real_asset_validation": ".omx/diagnostics/production_fs5_validation.json",
+    "validation_complete": true,
+    "static_checks": "28 changed Python files AST parsed; all169 registered source/copy hashes verified",
+    "unavailable_checks": [
+      "ruff",
+      "mypy"
+    ],
+    "windows_transaction_tests": true,
+    "linux_publish_tested": false
+  },
+  "g4_export_refresh_update": {
+    "date": "2026-11-01",
+    "files": [
+      "G4_REFRESH_RESULTS.md",
+      "G4_UNIFIED_EXPORT.md",
+      "Simulation_G2/nmm_bank.py",
+      "Simulation_G4/README.md",
+      "Simulation_G4/bank.py",
+      "Simulation_G4/export_nmm.py",
+      "Simulation_G4/pipeline.py",
+      "Simulation_G4/provenance.py",
+      "nmm_simulation.py",
+      "tests/test_g4_export_ancestry.py",
+      "tests/test_g4_export_nmm.py",
+      "tests/test_g4_pipeline.py",
+      "tests/test_unified_nmm.py"
+    ],
+    "explicit_regional_unit": "mV_PSP",
+    "model_family": "DualTimescaleJansenRit",
+    "export_schema": "g4-nmm-export-v1",
+    "regional_bank_schema": 2,
+    "root_tests": {
+      "total": 579,
+      "passed": 577,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    "copy_tests": {
+      "total": 571,
+      "passed": 560,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "new_dependencies": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "actual_run": "generated_simulation_dataset/G4/refresh_membership_256hz_20261101",
+    "validation_complete": true,
+    "training_completed": [
+      "physionet",
+      "arithmetic_zyma2019",
+      "faced"
+    ],
+    "training_draws": 2048,
+    "analysis_rate_hz": 256,
+    "drive_mode": "independent",
+    "projection_mode": "membership",
+    "real_subjects_per_dataset": 2,
+    "export_records": 84,
+    "esi_recipe_samples": 1224,
+    "checkpoint_replay_verified": true,
+    "physiological_parameter_recovery_validated": false,
+    "statistics_report": "G4_REFRESH_RESULTS.md"
+  },
+  "quality_noise_update": {
+    "date": "2026-11-02",
+    "files": [
+      "G4_UNIFIED_EXPORT.md",
+      "OPTIMIZATION_RESULTS.md",
+      "PRODUCTION_SAMPLE_INTERFACE.md",
+      "QUALITY_AND_TRAINING_POLICY.md",
+      "Simulation_G1/g1_simulation_core.py",
+      "Simulation_G1/quality.py",
+      "Simulation_G1/training_recipe.production.json",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G2/g2_simulation_core.py",
+      "Simulation_G2/training_dataset.py",
+      "Simulation_G4/bank.py",
+      "Simulation_G4/pipeline.py",
+      "nmm_simulation.py",
+      "scripts/audit_training_recipes.py",
+      "simulate_source_sensor.py",
+      "tests/test_g1_training_recipes.py",
+      "tests/test_g4_registered_training_noise.py",
+      "tests/test_production_defaults.py",
+      "tests/test_production_recipe_policy.py",
+      "tests/test_registered_noise_recipes.py",
+      "tests/test_sample_quality.py"
+    ],
+    "recipe_schema": "g1-recipes-v4",
+    "default_measurement_noise": "iid_white",
+    "source_background_policy": "spectral_rest_with_explicit_basis_otherwise_none",
+    "online_quality_profile": "online_contract",
+    "full_source_covariance_audit_opt_in": true,
+    "actual_recipe_count": 1080,
+    "actual_audited_count": 240,
+    "real_noise_policy": "opt_in_after_paired_pilot; IID_default_retained",
+    "root_tests": {
+      "total": 604,
+      "passed": 602,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0
+    },
+    "copy_tests": {
+      "total": 596,
+      "passed": 585,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    },
+    "new_dependencies": false,
+    "old_banks_modified": false,
+    "remote_pushed": false,
+    "validation_complete": true,
+    "audit_results": {
+      "passed": 193,
+      "warning": 47
+    },
+    "nmm_actual_samples_audited": 12,
+    "noise_contrast_completed": true,
+    "test_noise_domains": [
+      "iid",
+      "registered_resting"
+    ],
+    "real_forward_psd_error": {
+      "iid_control": 1.6563879549503326,
+      "real_noise": 0.969326339662075
+    },
+    "source_recipe_directory": "generated_simulation_dataset/G1_production_pilot_20261102_v2",
+    "report": "OPTIMIZATION_RESULTS.md",
+    "unavailable_static_tools": [
+      "ruff",
+      "mypy"
+    ]
+  },
+  "publication_preparation": {
+    "date": "2026-11-03",
+    "repository": "qsZZF/data_generation_ESI",
+    "whitespace_only_files": [
+      "neurovault_400_clusters.py",
+      "neurovault_data_cluster.py"
+    ],
+    "ast_equivalence_verified": true,
+    "scope": "code/configs/tests/docs; existing curated LFS assets preserved"
   }
 }

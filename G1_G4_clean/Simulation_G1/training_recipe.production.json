@@ -1,0 +1,25 @@
+{
+  "path_root": "..",
+  "output_dir": "generated_simulation_dataset/G1_production_recipes",
+  "cortex": "Anatomy/Cortex_FS_20k.mat",
+  "leadfield": "Anatomy/Gain_20k_FS.mat",
+  "n_supports": 25000,
+  "variants_per_support": 32,
+  "eval_variants_per_support": 16,
+  "seed": 42,
+  "srate": 256,
+  "duration_s": 2,
+  "baseline_duration_s": 2,
+  "shard_size": 4096,
+  "sensor_snr_mode": "active_rms",
+  "sensor_noise_peak_ratio": 0,
+  "covariance_estimator": "oas",
+  "patch_geometry": "geodesic",
+  "background_spectral_config": "Simulation_G1/realistic_background.example.json",
+  "background_multiscale_config": {
+    "fraction": 0.1,
+    "metric": "vertex_mean",
+    "n_components": 8,
+    "length_mm": 10
+  }
+}

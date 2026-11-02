@@ -1,4 +1,123 @@
+## 2026-11-02: focused quality, production defaults and measured-noise contrast
+
+Root: 604 tests, 602 passed and 2 skipped.
+Isolated copy: 596 tests, 585 passed and 11 skipped.
+Zero failures/errors; no imports from the original root. 184registered source/copy
+hashes agree;16changed Python files parse successfully. ruff/mypy were unavailable.
+
+Primary G1/unified NMM/period generation attaches explicit online-contract QC.
+Full source/covariance audit remains separate to preserve training throughput.
+Zero-variance covariance columns and failed-full-check aggregation have regressions.
+New production recipes v4 default to IID sensor noise and explicitly configured
+spectral-rest source background(or none). Actual1080recipe pilot:240fixed-stratified
+samples fully audited,193passed,47intentionalnegative-SNRwarnings,0failures. No failed
+sample replacement. An additional12actual NMM samples passed full checks;1224period
+ancestries remained split-disjoint. Previous pilot artifacts were preserved.
+
+G4 real-noise donors S003/S004/S005/S006 occupy distinct train/validation/calibration/test
+groups and exclude real evaluation subjects1/10. Same2048source bank, seeds and inverse
+settings; common205draw IID/real test inputs used for both models. Real heldout PSD
+error1.656->0.969, but IID-domain parameter recovery worsened. Retain IID default and
+registered-noise opt-in; this is not a covariance-only ablation or ESI localization
+validation. No PCA/residual/posterior/trial expansion, new dependencies or remote push.
+See [OPTIMIZATION_RESULTS.md](OPTIMIZATION_RESULTS.md) and [QUALITY_AND_TRAINING_POLICY.md](QUALITY_AND_TRAINING_POLICY.md).
+Historical entries below retain their earlier scopes and counts.
+
+## 2026-11-01: G4 bank export and new-configuration training
+
+Root suite: 579 tests, 577 passed and 2 skipped.
+Isolated copy: 571 tests, 560 passed and 11 skipped.
+Zero failures/errors; copy imports do not use the source root. Changed Python files
+parse successfully; all175 registered source/copy hashes verified.
+
+Actual current configuration: 2048AAL78 membership draws,256Hz,independent regional
+drive,10s retained+1s warmup. All cached draws validated without rewriting.
+Fresh compact inverses trained for PhysioNet/arithmetic/FACED with best validation
+epochs7/10/6, respectively. Two measured subjects per dataset; no full-corpus claim.
+84conditional source records exported;1224period recipes replayed across train/val/test,
+with all6subject groups kept within one fold. Actual64-channel sensor samples include
+2-second baseline covariance(rank63) and matched selected-reference SNR.
+Three saved checkpoints reloaded and reproduce a stored held-out prediction to float32
+roundoff(maxabsolute~3.8e-6). Regional parameter-residual recovery remains weak.
+Details: [G4_REFRESH_RESULTS.md](G4_REFRESH_RESULTS.md) and [G4_UNIFIED_EXPORT.md](G4_UNIFIED_EXPORT.md).
+No new dependencies, old-bank overwrites or remote push. This is not physiological
+validation, and no real-noise/PCA/residual training augmentation was introduced.
+Historical entries below retain their earlier scope and counts.
+
+## 2026-11-01: production sample contract and training throughput
+
+Root: 568 tests, 566 passed, 2 skipped. Isolated copy: 560 tests,
+549 passed, 11 skipped for external assets/optional integrations.
+Zero failures/errors; no original-root imports. 169 registered source/copy hashes agree.
+28 changed Python files pass AST parsing; ruff/mypy were not installed.
+
+G1 now returns named training arrays and complete patch truth. All spectral paths
+apply the cortex mask independently of residual fraction. New G1/NMM recipes record
+active_rms defaults explicitly (v3/v5); legacy stored SNR definitions remain readable.
+Sample publication is exclusive and transactional; resume verifies identity and
+payloads. Windows competing-writer/failure tests passed; Linux publish branch was not run.
+Measured-noise windows reuse bounded NPZ caches or NPY mmap, with explicit strict checks.
+Cache, schema, source truth, SNR and save/resume regressions passed.
+
+Actual fs5: 9 rest/ERP/ERSP configurations with fractions0/.1/.3, mask outside zero,
+2-second baseline covariance closure about1e-16. Actual62-channel PhysioNet windows
+and complete samples match cached/direct reads exactly; requestedactive SNR10dB,
+globalSNR about0.21dB. These are different explicitly named definitions.
+Detailed usage and limits: [PRODUCTION_SAMPLE_INTERFACE.md](PRODUCTION_SAMPLE_INTERFACE.md).
+No new dependencies, old-bank rewrites, G4 retraining or remote push.
+Historical validation entries below preserve their original scope.
+
+## 2026-11-01: multiscale fields and registered measured noise
+
+Root suite: 531 tests; 529 passed, 2 skipped, zero failures/errors.
+Isolated clean-copy suite: 523 tests; 512 passed,
+11 skipped for external assets/optional integrations, zero failures/errors.
+No imports came from the original project root. All 162 registered file hashes agree.
+Changed Python files pass AST parsing; ruff/mypy were not installed. The existing TVB
+optional-geodesic-extension warning remains; no numerical RuntimeWarning was observed.
+
+Actual fs5 audit: 18 configurations (rest/ERP/ERSP, fractions 0/.1/.3, vertex/mass metrics),
+maximum component-fraction error 7.82e-11 and source decomposition relative error 2.05e-17.
+Disabling the feature preserves exact source/sensor/noise/baseline/covariance arrays.
+PhysioNet S001R01 smoke: 62 explicitly matched channels, 256 Hz, 1-second event + 2-second
+baseline, target 10 dB measured 9.999999967 dB, baseline covariance relative error 9.39e-17.
+These are numerical/interface checks, not proof of physiological realism or parameter recovery.
+
+New options use shared existing temporal, amplitude and baseline helpers; no dependencies,
+large-bank rebuilds, G4 retraining or remote push. Usage: [MULTISCALE_REAL_NOISE.md](MULTISCALE_REAL_NOISE.md).
+Historical validation entries below retain their original scope and counts.
+
 # 复制版验证
+
+## 2026-11-01: geodesic geometry, physical amplitudes, observability
+
+Root: 477 tests, 475 passed, 2 skipped. Isolated collection: 469 tests, 458 passed, 11 skipped; zero failures/errors. New regression coverage includes legacy geometry, folded and masked graphs, physical unit contracts, fixed-noise amplitude scaling, mixed sensor units, exact/near-null partitions, noise-dependent cache keys, v3 recipe contracts, and G4 regional filtering/cache identity.
+
+Actual fs5 geometry/labels and an SI-declared MNE forward passed short validation. Timings and measured values are in GEOMETRY_UNITS_OBSERVABILITY.md. New labels are opt-in; G4 labels explicitly use regional PSP coordinates rather than full-vertex null space. No physiological prior calibration or real-data retraining is claimed. No packages installed, no old banks rewritten, and no remote push performed.
+
+## 2026-10-31: correctness and realism release
+
+Root suite: 442 tests, 440 passed, 2 skipped. Isolated collection: 434 tests, 423 passed, 11 skipped; zero failures or errors. Both contain the same 57 test files; collection imports exclude the original root.
+
+Real fs5 probes verified random ERP spatial diversity, cortical patch eligibility, shared baseline/event gain and 12 dB vertex-mean source SNR. MEG covariance probes preserved projected rank and improved the independent held-out whitening error with optional OAS. An actual AAL membership NMM sample achieved 15 dB source / 10 dB sensor SNR. Legacy shared G4 trajectories and fixed spectral ERP regression fixtures remain reproducible.
+
+New period plans use nmm-periods-v2; v1 remains supported with its original area-weighted fallback. Old banks/assets were not rewritten; code/checkpoint hash guards remain active. Source-only G4 bank drive changes require fresh banks and retraining. See GENERATION_REALISM_UPDATE.md for commands, measured values and limitations. No empirical physiological calibration or large network-asset rebuild is claimed.
+
+## 2026-10-31: MEG / high-density EEG null-space pilot
+
+The source workspace passed 364 of 366 tests, with 2 explicit skips. The isolated
+collection passed 349 of 359 tests, with 10 explicit skips and no failures or
+errors; the source workspace was absent from its import path. The additional
+real-forward fixture check is skipped because downloaded study assets are not
+included in this collection.
+
+The pilot evaluated 468 configurations. Artifact projection and null-space
+perturbation residuals were below 5e-15. These numerical checks support operator
+consistency, not universal reconstruction accuracy or MEG device performance.
+See [NULLSPACE_STUDY.md](NULLSPACE_STUDY.md) for the design, results, limitations,
+and reproduction commands. Only study code, tests, and the report were copied;
+downloaded FIF/NPZ data, generated results, and the publication Git clone remain
+outside this update. This study has not been pushed to the remote repository.
 
 ## 2026-10-29：fsaverage5 派生资产发布与构建器修正
 
@@ -111,6 +230,17 @@ batch 默认字段、保存接口、滤波及白化；G1 原信号数组与修�
 沿用现有重采样、滤波和 bank 配置传递流程，没有新增依赖或接口层。
 
 以下保留此前各轮验证记录，测试总数以本节为准。
+
+
+## 2026-10-31: inverse methods, anatomical supports, and nullspace dynamics
+
+Isolated clean-copy suite: 390 tests; 380 passed, 10 explicitly skipped, zero failures/errors.
+The original project root was absent from the import path. The root suite passed 395 tests with 2 explicit skips (397 total).
+All 14 newly mirrored files were byte-identical at copy time; the collection now records 129 copied files and 112 Python files.
+New coverage includes inverse estimators, observable/null recovery metrics, FEM LBO and full Green resolvents, experimental design, and dynamics.
+No generated forward/basis archives, datasets, or experiment outputs were copied; no new dependencies were installed.
+The pilot saved 4850 method/support estimates and 96 dynamic configurations. All 1150 SBL result records converged after targeted refinement.
+See NULLSPACE_METHODS_STUDY.md for methods and the limits of the synthetic pilot.
 
 - 更新日期：2026-10-24（NMM period 数据集、父身份划分、缓存与批量读取；G4方案）。
 - Python源码：68个文件，全部语法解析通过；JSON 文件解析通过。

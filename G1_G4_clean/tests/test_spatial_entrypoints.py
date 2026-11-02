@@ -90,7 +90,8 @@ class UnifiedSpatialTests(unittest.TestCase):
         config = replace(self.config, spatial={'mode': 'diffuse', 'duration_s': .4}, spatial_decay_mm=12.)
         result = self.sim.generate_sample(config)
         self.assertAlmostEqual(result['manifest']['realized_source_snr_db'], 3., places=6)
-        self.assertAlmostEqual(result['manifest']['realized_sensor_snr_db'], 10., places=6)
+        self.assertAlmostEqual(result['manifest']['realized_sensor_snr_reference_db'], 10., places=6)
+        self.assertEqual(result['manifest']['sensor_snr_mode'], 'active_rms')
         self.assertFalse(np.allclose(result['source'], self.backend.projection_matrix @ result['region_source']))
         self.assertTrue(result['manifest']['spatial_sources'])
 

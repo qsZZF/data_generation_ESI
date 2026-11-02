@@ -1,4 +1,10 @@
-"""Build configuration-only G1 datasets and replay indexed recipes on demand."""
+"""Build configuration-only G1 datasets and replay indexed recipes on demand.
+
+Production: python -m Simulation_G1.training_recipes --config
+Simulation_G1/training_recipe.production.json. JSON path_root is relative to the
+config file; resource paths (including basis/network paths inside referenced
+settings JSON) resolve against that root. Explicit CLI options override defaults.
+"""
 from __future__ import annotations
 
 import argparse
@@ -15,7 +21,9 @@ import scipy
 
 from .g1_simulation_core import G1SimulationConfig, G1ScenarioSampler, G1SourceSimulator
 
-SCHEMA = "g1-recipes-v1"
+SCHEMA = "g1-recipes-v4"
+LEGACY_SCHEMA = "g1-recipes-v1"
+RESOURCE_SCHEMA = "g1-recipes-v2"
 STREAMS = ("spatial", "waveform", "gain", "background", "sensor")
 PROFILES = ("uniform", "decay", "diffuse", "contract", "pulse")
 # label, fraction, possible source counts, area range(cm2), sensor SNR, source SNR, seed spacing(mm)
@@ -54,17 +62,22 @@ def _array_hash(*arrays):
 
 def asset_identity(simulator):
     conn = simulator.vert_conn
-    return {"mesh_sha256": _array_hash(simulator.vertices, simulator.faces, conn.indptr, conn.indices, conn.data),
+    identity = {"mesh_sha256": _array_hash(simulator.vertices, simulator.faces, conn.indptr, conn.indices, conn.data),
             "leadfield_sha256": _array_hash(simulator.leadfield),
             "n_vertices": simulator.n_sources, "n_sensors": simulator.n_sensors,
+            "cortex_mask_sha256": simulator.cortex_mask_metadata['sha256'],
             "coordinate_scale_to_mm": simulator.coord_to_mm}
+    if getattr(simulator, 'channel_names', None) is not None:
+        identity['channel_names'] = list(simulator.channel_names)
+    return identity
 
 
 def generator_identity():
     folder = Path(__file__).resolve().parent
     return {"files": {name: _digest(folder/name) for name in
                       ("g1_simulation_core.py", "spatial.py", "training_recipes.py", "noise_covariance.py",
-                       "geometry.py", "spectral.py")},
+                       "geometry.py", "spectral.py", "cortical.py", "geodesic.py",
+                       "amplitude.py", "observability.py", "multiscale.py", "real_noise.py", "sample_io.py", "quality.py")},
             "python": platform.python_version(), "numpy": np.__version__, "scipy": scipy.__version__}
 
 
@@ -134,7 +147,9 @@ def _variant(support, index, base, dataset_seed, families):
     start = float(np.clip(center-transition/2, 0., duration-transition))
     variant_seed = _seed(dataset_seed, support["index"], index, 31)
     noise_rng = np.random.default_rng(variant_seed)
-    bg_type = str(rng.choice(["none", "pink", "powerlaw", "specparam", "alpha", "synaptic"]))
+    background_enabled = bool(rng.integers(6))
+    background_settings = base.get('source_background_spectral', {})
+    bg_type = 'spectral_rest' if background_settings and background_enabled else None
     config = dict(
         sample_id=f"g1_{support['support_id'][:16]}_{index:03d}",
         random_seed=variant_seed,
@@ -143,20 +158,67 @@ def _variant(support, index, base, dataset_seed, families):
         decay_mm=decays, waveform_params=waveforms, connectivity_mode=mode, coupling=coupling,
         spatial=dict(mode="static" if profile in {"uniform", "decay"} else profile,
                      area_threshold_cm2=None, hop_threshold=None, start_s=start, duration_s=transition),
-        source_background_type=None if bg_type == "none" else bg_type,
-        source_snr_db=None if bg_type == "none" else float(rng.uniform(*level[5])),
-        sensor_noise_type=str(noise_rng.choice(["iid_white", "white", "pink", "powerlaw", "specparam_resting", "mixed"])),
+        source_background_type=bg_type,
+        source_background_spectral=background_settings if bg_type == 'spectral_rest' else {},
+        source_snr_db=None if bg_type is None else float(rng.uniform(*level[5])),
+        sensor_noise_type='iid_white',
         sensor_snr_db=float(noise_rng.uniform(*level[4])),
     )
     config["component_seeds"]["sensor"] = _seed(variant_seed, 4)
+    if base.get('amplitude_mode') == 'physical':
+        config['sensor_snr_db'] = None
     return dict(support_index=support["index"], support_id=support["support_id"], split=support["split"],
                 difficulty=support["difficulty"], variant_index=index, temporal_group=group,
                 spatial_profile=profile, waveform_arrangement=arrangement, config=config)
 
 
+def _registered_noise_options(path, simulator, *, srate, duration_s, required_splits, amplitude, baseline_duration_s=2.):
+    """Inspect registry metadata only; raw sensor recordings stay on disk."""
+    from .real_noise import load_noise_registry
+    channels = getattr(simulator, 'channel_names', None)
+    if channels is None:
+        raise ValueError('Registered recipe noise requires explicit simulator channel_names')
+    path = Path(path).resolve()
+    checksum = _digest(path)
+    manifest = load_noise_registry(path)
+    if _digest(path) != checksum:
+        raise ValueError('Noise registry checksum changed while building recipes')
+    compatible = {split: [] for split in required_splits}
+    # The recipe baseline is two seconds; neither resampling nor tiling is implicit.
+    minimum_samples = int(round((baseline_duration_s + duration_s)*srate))
+    physical = amplitude.get('amplitude_mode') == 'physical'
+    if physical:
+        from .amplitude import normalize_sensor_units
+        dummy = np.ones((len(channels), 1))
+        _, expected_dimensions = normalize_sensor_units(dummy, amplitude['sensor_units'])
+    for record in manifest['records']:
+        if (record['split'] in compatible and record['fs_hz'] == srate
+                and record['reference'] == 'average'
+                and set(record['channel_names']) == set(channels)
+                and record['shape'][1] >= minimum_samples):
+            units = [record['sensor_units'][record['channel_names'].index(name)] for name in channels]
+            if physical:
+                _, dimensions = normalize_sensor_units(dummy, units)
+                if dimensions != expected_dimensions:
+                    continue
+            elif len(set(units)) != 1:
+                # Relative global-RMS calibration cannot pool V/uV or EEG/MEG rows.
+                continue
+            compatible[record['split']].append(record)
+    for split, records in compatible.items():
+        if not records:
+            raise ValueError(f'No compatible measured-noise records for {split}: check rate, channels, reference, units and length')
+        records.sort(key=lambda record: record['record_id'])
+    return dict(path=str(path), sha256=checksum), compatible
+
+
 def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_per_support=32,
-                         eval_variants_per_support=16, seed=42, srate=250., duration_s=2.,
-                         shard_size=4096, sensor_noise_peak_ratio=1., resource_paths=None):
+                         eval_variants_per_support=16, seed=42, srate=256., duration_s=2.,
+                         shard_size=4096, sensor_noise_peak_ratio=1., resource_paths=None,
+                         source_background_spectral=None, covariance_estimator='empirical',
+                         patch_geometry='geodesic', amplitude_settings=None, record_observability=False,
+                         real_noise_registry=None, allow_combined_real_source_background=False,
+                         source_background_multiscale=None, sensor_snr_mode='active_rms', baseline_duration_s=2.):
     """Write recipes only; no source signals, sensor arrays or PSDs are computed."""
     for name, value in (("n_supports", n_supports), ("variants_per_support", variants_per_support),
                         ("eval_variants_per_support", eval_variants_per_support), ("shard_size", shard_size)):
@@ -170,6 +232,56 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
         raise ValueError("duration_s must contain whole samples")
     if sensor_noise_peak_ratio is not None and (not np.isfinite(sensor_noise_peak_ratio) or sensor_noise_peak_ratio <= 0):
         raise ValueError("sensor_noise_peak_ratio must be positive or None")
+    if covariance_estimator not in ('empirical', 'oas'):
+        raise ValueError('covariance_estimator must be empirical or oas')
+    if sensor_snr_mode not in ('active_rms', 'global_rms', 'robust_global_rms'):
+        raise ValueError('Unsupported sensor_snr_mode')
+    background_settings = dict(source_background_spectral or {})
+    if source_background_multiscale is not None and not isinstance(source_background_multiscale, dict):
+        raise ValueError('source_background_multiscale must be a dictionary')
+    multiscale_settings = dict(source_background_multiscale or {})
+    if multiscale_settings and not background_settings:
+        raise ValueError('Multiscale recipe backgrounds require source_background_spectral')
+    if multiscale_settings:
+        from .spectral import validate_multiscale_settings
+        validate_multiscale_settings(multiscale_settings)
+    if not isinstance(allow_combined_real_source_background, bool):
+        raise ValueError('allow_combined_real_source_background must be Boolean')
+    amplitude = dict(amplitude_settings or {})
+    allowed_amplitude = {'amplitude_mode', 'foreground_peak_am', 'leadfield_source_unit', 'sensor_units', 'sensor_noise_std'}
+    if set(amplitude) - allowed_amplitude:
+        raise ValueError('Unknown amplitude setting')
+    physical = amplitude.get('amplitude_mode') == 'physical'
+    check = G1SimulationConfig(**amplitude, patch_geometry=patch_geometry, record_observability=record_observability,
+        srate=srate, baseline_duration_s=baseline_duration_s,
+        normalize_source=not physical, sensor_snr_db=None if physical else 10.,
+        sensor_noise_peak_ratio=None if physical else sensor_noise_peak_ratio)
+    check.validate_recipe()
+    if background_settings:
+        if not background_settings.get('basis_path'):
+            raise ValueError('Spectral recipe backgrounds require basis_path')
+        for asset in ('basis', 'network'):
+            if background_settings.get(asset + '_path'):
+                path = Path(background_settings[asset + '_path']).resolve()
+                digest = _digest(path)
+                if background_settings.get(asset + '_sha256', digest) != digest:
+                    raise ValueError('Background asset checksum differs from requested recipe')
+                background_settings[asset + '_path'] = str(path)
+                background_settings[asset + '_sha256'] = digest
+    split_counts = _counts(n_supports, [.8, .1, .1])
+    noise_identity, noise_records = None, None
+    if real_noise_registry is not None:
+        if physical:
+            requested_std = amplitude.get('sensor_noise_std')
+            if requested_std is None or not np.any(np.asarray(requested_std) > 0):
+                raise ValueError('Registered physical noise requires positive sensor_noise_std in at least one channel')
+            units = amplitude['sensor_units']
+            if not isinstance(units, str) and len(set(units)) != 1:
+                raise ValueError('Average-referenced physical recipes require identical destination sensor units')
+        noise_identity, noise_records = _registered_noise_options(real_noise_registry, simulator,
+            srate=float(srate), duration_s=float(duration_s),
+            required_splits=[split for split, count in zip(('train', 'val', 'test'), split_counts) if count],
+            amplitude=amplitude, baseline_duration_s=baseline_duration_s)
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=False)
     generator_version = generator_identity()
@@ -179,9 +291,18 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
         (snapshot/name).write_bytes((Path(__file__).resolve().parent/name).read_bytes())
     assets = asset_identity(simulator)
     base = asdict(G1SimulationConfig(srate=float(srate), time_window=(0., float(duration_s)),
+        baseline_duration_s=float(baseline_duration_s),
         source_space_id=assets["mesh_sha256"], leadfield_id=assets["leadfield_sha256"],
-        sensor_snr_mode="global_rms", sensor_noise_peak_ratio=sensor_noise_peak_ratio))
-    split_counts = _counts(n_supports, [.8, .1, .1])
+        sensor_snr_mode=sensor_snr_mode, sensor_noise_peak_ratio=sensor_noise_peak_ratio,
+        covariance_estimator=covariance_estimator, patch_geometry=patch_geometry,
+        record_observability=record_observability, **amplitude,
+        normalize_source=not physical))
+    if physical:
+        base.update(sensor_noise_peak_ratio=None, sensor_snr_db=None)
+    base['source_background_spectral'] = background_settings
+    if noise_identity is not None:
+        base.update(real_noise_registry=noise_identity['path'],
+                    allow_combined_real_source_background=allow_combined_real_source_background)
     splits = np.repeat(["train", "val", "test"], split_counts)
     np.random.default_rng(_seed(seed, 0)).shuffle(splits)
     levels = []
@@ -200,7 +321,7 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
             count = int(rng.choice(level[2]))
             areas = (100*np.exp(rng.uniform(np.log(level[3][0]), np.log(level[3][1]), count))).tolist()
             geometry = G1SimulationConfig(n_patch=count, patch_area_mm2=areas, decay_mm=0.,
-                min_seed_distance_mm=level[6], random_seed=geometry_seed)
+                min_seed_distance_mm=level[6], random_seed=geometry_seed, patch_geometry=patch_geometry)
             try:
                 centers, patches, _ = simulator._resolve_spatial_patches(geometry, rng)
             except RuntimeError:
@@ -227,6 +348,20 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
         count = variants_per_support if support["split"] == "train" else eval_variants_per_support
         for variant_index in range(count):
             row = _variant(support, variant_index, base, seed, families)
+            if row['config']['source_background_type'] == 'spectral_rest' and multiscale_settings:
+                row['config']['source_background_multiscale'] = multiscale_settings
+            if noise_records is not None:
+                records = noise_records[support['split']]
+                noise_rng = np.random.default_rng(_seed(seed, support['index'], variant_index, 53))
+                record = records[int(noise_rng.integers(len(records)))]
+                row['config'].update(sensor_noise_type='real', real_noise_record_id=record['record_id'],
+                                     real_noise_split=support['split'])
+                row['real_noise'] = {key: record[key] for key in
+                    ('record_id', 'noise_role', 'parent_group_id', 'parent_data_group_ids', 'record_sha256')}
+                if (record['noise_role'] in ('resting_background', 'prestimulus', 'residual')
+                        and not allow_combined_real_source_background):
+                    row['config'].update(source_background_type=None, source_snr_db=None,
+                                         source_background_spectral={}, source_background_multiscale={})
             for key in ("split", "difficulty", "spatial_profile"):
                 counts[key][row[key]] += 1
             counts["source_count"][len(support["seed_vertices"])]+=1
@@ -246,7 +381,8 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
         path = output/f"{label}.indices.npy"
         np.save(path, np.asarray(indices, dtype=np.int64), allow_pickle=False)
         split_indexes[label] = dict(file=path.name, sha256=_digest(path), count=len(indices))
-    manifest = dict(schema=SCHEMA, generator=generator_version, assets=assets,
+    manifest = dict(schema=SCHEMA,
+        generator=generator_version, assets=assets,
         resource_paths=resource_paths or {}, base_config=base, dataset_seed=seed,
         n_supports=n_supports, n_samples=total, variants_per_support=variants_per_support,
         eval_variants_per_support=eval_variants_per_support,
@@ -254,25 +390,36 @@ def build_recipe_dataset(simulator, output_dir, *, n_supports=25000, variants_pe
         support_table=support_record, shards=shards, split_indexes=split_indexes,
         counts={k: dict(v) for k,v in counts.items()},
         difficulty_definition="nominal requested SNR/source count/geometry stratum; actual capped SNR is reported at replay",
-        real_sensor_noise_enabled=False, metadata_only=True,
+        real_sensor_noise_enabled=noise_identity is not None, metadata_only=True,
         split_policy="exact foreground-support identity held out; not anatomical-region or forward-model holdout",
         generator_snapshot="generator_snapshot/Simulation_G1")
+    manifest['production_noise_policy'] = dict(
+        sensor_noise='registered_real' if noise_identity is not None else 'iid_white',
+        source_background='explicit_pinned_spectral_rest_or_none',
+        spectral_background_group_probability=5/6 if background_settings else 0.,
+        old_synthetic_background_families='excluded_from_new_recipes')
+    if noise_identity is not None:
+        manifest['real_noise_registry'] = noise_identity
+        manifest['split_policy'] += '; measured-noise acquisition/subject/content parent groups held out by registry'
     (output/"dataset.json").write_text(json.dumps(manifest, indent=2, allow_nan=False), encoding="utf-8")
     return manifest
 
 
 class RecipeDataset:
-    """Random access with one resident simulator; returns G1's five output objects."""
-    def __init__(self, path, simulator, *, split="train"):
+    """Random access returning named samples with a per-process noise reader."""
+    def __init__(self, path, simulator, *, split="train", noise_reader=None):
         self.path = Path(path)
         self.manifest = json.loads((self.path/"dataset.json").read_text(encoding="utf-8"))
-        if self.manifest["schema"] != SCHEMA:
+        if self.manifest["schema"] not in (SCHEMA, 'g1-recipes-v3', RESOURCE_SCHEMA, LEGACY_SCHEMA):
             raise ValueError("Unsupported G1 recipe schema")
         if self.manifest["generator"] != generator_identity():
             raise ValueError("Generator code or environment differs from the frozen recipe version")
         if self.manifest["assets"] != asset_identity(simulator):
             raise ValueError("Recipe mesh/leadfield differs from the supplied simulator")
+        self._check_noise_registry()
         self.simulator = simulator
+        from .real_noise import NoiseWindowReader
+        self.noise_reader = NoiseWindowReader() if noise_reader is None else noise_reader
         self._indexes, self._support_cache = {}, OrderedDict()
         self._starts = [row["start"] for row in self.manifest["shards"]]
         self._selection = None
@@ -286,6 +433,11 @@ class RecipeDataset:
 
     def __len__(self):
         return self.manifest["n_samples"] if self._selection is None else len(self._selection)
+
+    def _check_noise_registry(self):
+        resource = self.manifest.get('real_noise_registry')
+        if resource is not None and _digest(resource['path']) != resource['sha256']:
+            raise ValueError('Noise registry checksum differs from frozen recipes')
 
     def _read(self, table, index):
         key = table["file"]
@@ -302,6 +454,7 @@ class RecipeDataset:
     def recipe(self, index):
         if isinstance(index, bool) or not isinstance(index, (int, np.integer)) or not 0 <= index < len(self):
             raise IndexError("Recipe index outside dataset")
+        self._check_noise_registry()
         if self._selection is not None:
             index = int(self._selection[index])
         shard = self.manifest["shards"][bisect_right(self._starts, index)-1]
@@ -322,36 +475,93 @@ class RecipeDataset:
 
     def __getitem__(self, index):
         config, row = self.recipe(index)
-        sensor, clean, noise, source, metadata = self.simulator.generate_sensor(config, compute_diagnostics=False)
-        metadata.update(recipe_schema=SCHEMA, support_id=row["support_id"], split=row["split"],
+        sample = self.simulator.generate_sample(config, compute_diagnostics=False, noise_reader=self.noise_reader)
+        metadata = sample['manifest']
+        metadata.update(recipe_schema=self.manifest['schema'], support_id=row["support_id"], split=row["split"],
                         difficulty=row["difficulty"], variant_index=row["variant_index"],
                         temporal_group=row["temporal_group"], spatial_profile=row["spatial_profile"])
-        return sensor, clean, noise, source, metadata
+        return sample
 
 
-def main():
+def _read_settings(value, path_root):
+    if value is None:
+        return None
+    settings = dict(value) if isinstance(value, dict) else json.loads(Path(value).read_text(encoding='utf-8'))
+    for key in ('basis_path', 'network_path'):
+        if settings.get(key) and not Path(settings[key]).is_absolute():
+            settings[key] = str((path_root/settings[key]).resolve())
+    return settings
+
+
+def _parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument('--config', type=Path, help='JSON CLI defaults; path_root is relative to this JSON file')
+    parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--n-supports", type=int, default=25000)
     parser.add_argument("--variants-per-support", type=int, default=32)
     parser.add_argument("--eval-variants-per-support", type=int, default=16)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--srate", type=float, default=250.)
+    parser.add_argument("--srate", type=float, default=256.)
     parser.add_argument("--duration-s", type=float, default=2.)
+    parser.add_argument('--baseline-duration-s', type=float, default=2.)
     parser.add_argument("--shard-size", type=int, default=4096)
+    parser.add_argument('--background-spectral-config', type=Path)
+    parser.add_argument('--background-multiscale-config', type=Path)
+    parser.add_argument('--real-noise-registry', type=Path)
+    parser.add_argument('--channel-names', type=Path, help='JSON array in leadfield sensor-row order')
+    parser.add_argument('--allow-combined-real-source-background', action='store_true')
+    parser.add_argument('--sensor-snr-mode', choices=('active_rms', 'global_rms', 'robust_global_rms'),
+                        default='active_rms', help='Activity-window calibration by default')
+    parser.add_argument('--covariance-estimator', choices=('empirical', 'oas'), default='empirical')
+    parser.add_argument('--patch-geometry', choices=('geodesic', 'legacy_bfs'), default='geodesic')
+    parser.add_argument('--amplitude-config', type=Path, help='Explicit physical amplitude/unit settings JSON')
+    parser.add_argument('--record-observability', action='store_true')
     parser.add_argument("--sensor-noise-peak-ratio", type=float, default=1., help="0 disables the peak limit")
     anatomy = Path(__file__).resolve().parents[1]/"Anatomy"
     parser.add_argument("--cortex", type=Path, default=anatomy/"Cortex_FS_20k.mat")
     parser.add_argument("--leadfield", type=Path, default=anatomy/"Gain_20k_FS.mat")
-    args = parser.parse_args()
+    preliminary, _ = parser.parse_known_args(argv)
+    path_root = Path.cwd()
+    if preliminary.config is not None:
+        settings = json.loads(preliminary.config.read_text(encoding='utf-8'))
+        path_root = (preliminary.config.resolve().parent/settings.pop('path_root', '.')).resolve()
+        known = {action.dest for action in parser._actions} - {'help', 'config'}
+        if set(settings)-known:
+            parser.error(f'Unknown production config keys: {sorted(set(settings)-known)}')
+        for key in ('output_dir', 'background_spectral_config', 'background_multiscale_config',
+                    'real_noise_registry', 'channel_names', 'amplitude_config', 'cortex', 'leadfield'):
+            if settings.get(key) and isinstance(settings[key], str):
+                settings[key] = (path_root/settings[key]).resolve()
+        parser.set_defaults(**settings)
+    args = parser.parse_args(argv)
+    if args.output_dir is None:
+        parser.error('--output-dir or config output_dir is required')
+    args.path_root = path_root
+    return args
+
+
+def main(argv=None):
+    args = _parse_args(argv)
     from Simulation_G2.g2_simulation_core import load_brainstorm_cortex, load_brainstorm_leadfield
     cortex = load_brainstorm_cortex(args.cortex)
     leadfield = load_brainstorm_leadfield(args.leadfield, n_vertices=np.asarray(cortex["Vertices"]).shape[-1])
-    simulator = G1SourceSimulator.from_brainstorm_cortex(leadfield, cortex)
+    simulator_options = {}
+    if args.channel_names:
+        simulator_options['channel_names'] = json.loads(args.channel_names.read_text(encoding='utf-8'))
+    simulator = G1SourceSimulator.from_brainstorm_cortex(leadfield, cortex, **simulator_options)
     manifest = build_recipe_dataset(simulator, args.output_dir, n_supports=args.n_supports,
         variants_per_support=args.variants_per_support, eval_variants_per_support=args.eval_variants_per_support,
         seed=args.seed, srate=args.srate, duration_s=args.duration_s, shard_size=args.shard_size,
+        baseline_duration_s=args.baseline_duration_s,
         sensor_noise_peak_ratio=None if args.sensor_noise_peak_ratio == 0 else args.sensor_noise_peak_ratio,
+        source_background_spectral=_read_settings(args.background_spectral_config, args.path_root),
+        source_background_multiscale=_read_settings(args.background_multiscale_config, args.path_root),
+        real_noise_registry=args.real_noise_registry,
+        allow_combined_real_source_background=args.allow_combined_real_source_background,
+        sensor_snr_mode=args.sensor_snr_mode,
+        covariance_estimator=args.covariance_estimator,
+        patch_geometry=args.patch_geometry, record_observability=args.record_observability,
+        amplitude_settings=_read_settings(args.amplitude_config, args.path_root),
         resource_paths={"cortex": str(args.cortex.resolve()), "leadfield": str(args.leadfield.resolve())})
     print(json.dumps({key: manifest[key] for key in ("n_supports", "n_samples", "split_support_counts", "counts")}, indent=2))
 

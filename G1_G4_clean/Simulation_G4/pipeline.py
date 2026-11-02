@@ -19,12 +19,16 @@ from scipy.signal import butter, resample_poly, sosfiltfilt, welch
 import torch
 
 from Simulation_G1.noise_covariance import baseline_covariance_payload, baseline_sample_count
+from Simulation_G1.observability import analyze_observability
+from Simulation_G2.nmm_bank import projection_hash
 
 from .atlas import load_atlas
-from .bank import array_hash, project_bank
+from .bank import _validate_sample, array_hash, project_bank
 from .inverse import create_model, parameter_metrics, predict, train_from_arrays, unpack_parameters
 from .resources import load_cortical_connectivity
-from .simulator import PARAMETER_NAMES, simulate
+from .simulator import PARAMETER_NAMES, drive_config, simulate
+from .provenance import reconstruction_ancestry, _qualified
+from .evaluation import recovery_detail
 
 ROOT = Path(__file__).resolve().parents[1]
 CHANNEL_ALIASES = {"T3": "T7", "T4": "T8", "T5": "P7", "T6": "P8"}
@@ -35,15 +39,42 @@ def channel_key(name):
     return CHANNEL_ALIASES.get(name, name)
 
 
-def analysis_filter(eeg, sampling_rate_hz):
-    """Same finite-window observation filter for simulated and measured signals."""
+def _temporal_analysis_filter(values, sampling_rate_hz):
+    """Temporal observation filter only; regional PSP must not receive sensor CAR."""
     if sampling_rate_hz < 100:
         raise ValueError("The initial 1-40 Hz analysis requires sampling rate >=100 Hz")
     filt = butter(4, [1, 40], btype="bandpass", fs=sampling_rate_hz, output="sos")
-    values = sosfiltfilt(filt, eeg, axis=-1)
+    values = sosfiltfilt(filt, values, axis=-1)
     values -= values.mean(axis=-1, keepdims=True)
+    return values
+
+
+def analysis_filter(eeg, sampling_rate_hz):
+    """Same finite-window observation filter for simulated and measured signals."""
+    values = _temporal_analysis_filter(eeg, sampling_rate_hz)
     values -= values.mean(axis=-2, keepdims=True)
     return values.astype(np.float32)
+
+
+def _regional_observability(leadfield, source, covariance, rate, cache, *,
+                            observation_gain=1., demean_before_filter=False):
+    """Label model regional coordinates before the inverse's global z-score."""
+    values = np.asarray(source, dtype=float)
+    if demean_before_filter:
+        values = values - values.mean(axis=-1, keepdims=True)
+    filtered = _temporal_analysis_filter(values, rate)
+    labels = analyze_observability(leadfield * observation_gain, filtered, covariance,
+                                  average_reference=True, cache=cache)
+    labels.update(source_energy_metric='unweighted_regional_PSP_Euclidean',
+                  coordinate_domain='atlas_region_coefficients', full_vertex_nullspace_evaluated=False,
+                  source_unit='mV_PSP', source_amplitude_conversion_applied=False,
+                  observation_gain_applied_to_leadfield=float(observation_gain),
+                  target_filter='fourth_order_Butterworth_1_40_Hz_then_temporal_demean; no_regional_CAR',
+                  target_demeaned_before_filter=bool(demean_before_filter),
+                  signal_stage='after_analysis_filter_before_inverse_global_zscore',
+                  sensor_projection='average_reference_after_regional_forward')
+    labels.pop('cache_hit', None)
+    return labels
 
 
 def load_measured(paths, atlas, *, sampling_rate_hz=256):
@@ -142,7 +173,10 @@ def _atomic_npz(path, **arrays):
 def _group_fingerprint(job):
     """Hash every group input, numerical convention and reconstruction code."""
     identity = {key: job[key] for key in ("subject", "condition", "seed", "sampling_rate_hz",
-                                        "warmup_s", "dt_ms", "code_identity")}
+                                        "warmup_s", "dt_ms", "code_identity", "drive_mode", "drive_correlation")}
+    identity['record_observability'] = bool(job.get('record_observability', False))
+    identity['dataset_id']=job.get('dataset_id')
+    identity['atlas_identity']=job.get('atlas_identity')
     identity["region_names"] = np.asarray(job["region_names"]).tolist()
     identity["aal_roi_numbers"] = np.asarray(job["aal_roi_numbers"]).tolist()
     identity["provenance"] = {key: np.asarray(value).tolist() for key, value in job["provenance"].items()}
@@ -200,19 +234,22 @@ def _reconstruct_group(job):
     else:
         return {"subject": subject, "condition": condition, "status": "parameters_only_insufficient_independent_windows"}
     # Linear constraints of the joint tau prior are preserved by averaging.
+    ancestry=reconstruction_ancestry(job.get('dataset_id'),str(subject),str(condition),provenance,fitting,evaluation)
     point = {key: value[fitting].mean(axis=0, dtype=float) for key, value in parameters.items()}
     point["delay_ms"] = float(point["delay_ms"][0])
     regional, projected, baseline_projected, metas = [], [], [], []
     for repetition in range(3):
         source, times, meta = simulate(point, connectivity,
             duration_s=eeg.shape[-1] / sampling_rate_hz, warmup_s=warmup_s, dt_ms=dt_ms,
-            sampling_rate_hz=sampling_rate_hz, seed=seed + repetition)
+            sampling_rate_hz=sampling_rate_hz, seed=seed + repetition,
+            **drive_config(job["drive_mode"], job["drive_correlation"]))
         regional.append(source.astype(np.float32))
         projected.append(analysis_filter((leadfield @ source)[None], sampling_rate_hz)[0])
         metas.append(meta)
         baseline_source, _, _ = simulate(prior_parameters, connectivity,
             duration_s=eeg.shape[-1] / sampling_rate_hz, warmup_s=warmup_s, dt_ms=dt_ms,
-            sampling_rate_hz=sampling_rate_hz, seed=seed + repetition)
+            sampling_rate_hz=sampling_rate_hz, seed=seed + repetition,
+            **drive_config(job["drive_mode"], job["drive_correlation"]))
         baseline_projected.append(analysis_filter((leadfield @ baseline_source)[None], sampling_rate_hz)[0])
     projected = np.asarray(projected)
     gain = float(np.sqrt(np.mean(eeg[fitting] ** 2) / max(float(np.mean(projected ** 2)), np.finfo(float).tiny)))
@@ -233,6 +270,12 @@ def _reconstruct_group(job):
     covariance_metadata.update(noise_status="no_added_noise",
         covariance_target="all_simulated_network", covariance_units="V^2",
         covariance_scope="generated_clean_sensor_only; not measured EEG noise")
+    if job.get('record_observability', False):
+        observability_cache = {}
+        covariance_metadata['observability'] = [
+            _regional_observability(leadfield, source, covariance_arrays['noise_covariance'][index],
+                sampling_rate_hz, observability_cache, observation_gain=gain)
+            for index, source in enumerate(regional)]
     _atomic_npz(artifact, fingerprint=fingerprint,
         region_source_mV=np.asarray(regional), clean_sensor_V=reconstructed, time_s=times,
         **covariance_arrays,
@@ -241,16 +284,22 @@ def _reconstruct_group(job):
         fitting_window_ids=provenance["window_id"][fitting], evaluation_window_ids=provenance["window_id"][evaluation],
         metadata_json=json.dumps({"subject": subject, "condition": condition, "split_kind": split_kind,
             "human_source_truth_available": False, "parameter_status": "model_conditioned_estimate",
-            "source_unit": "mV_PSP", "simulations": metas, **covariance_metadata}))
+            "source_unit": "mV_PSP", "simulations": metas,
+            'model':{'class':'DualTimescaleJansenRit','implementation':'paper_dual_timescale_jr'},
+            **ancestry,**job.get('atlas_identity',{}),
+            **drive_config(job["drive_mode"], job["drive_correlation"]), **covariance_metadata}))
     result = {"subject": subject, "condition": condition, "status": "forward_checked",
               "fitting_windows": len(fitting), "evaluation_windows": len(evaluation),
               "split_kind": split_kind, "observation_gain": gain, "file": str(Path("reconstructed_sources") / name),
               **fitted_metrics, "prior_baseline": baseline_metrics,
               "log_psd_error_improvement_over_prior": baseline_metrics["mean_abs_log10_psd_error"] -
                   fitted_metrics["mean_abs_log10_psd_error"]}
+    result['parent_data_group_ids']=ancestry['parent_data_group_ids']
     result["forward_quality"] = ("lower_psd_error_than_prior" if result["log_psd_error_improvement_over_prior"] > 0
                                  else "no_psd_error_improvement_over_prior")
     result["physiological_parameter_recovery_validated"] = False
+    if job.get('record_observability', False):
+        result['observability'] = covariance_metadata['observability']
     # Commit the archive before the JSON completion record. An interruption
     # between these replaces is detected by the stored archive checksum.
     temporary = cache_path.with_suffix(".part")
@@ -266,10 +315,23 @@ def _reconstruction_worker_init():
 
 def reconstruct_groups(model, eeg, provenance, atlas, connectivity, leadfield, output,
                        *, sampling_rate_hz, prior_parameters, seed=42, device="auto", max_groups=None,
-                       warmup_s=1, dt_ms=0.5, reconstruction_workers=1):
-    """Estimate windows once, then resume/parallelize independent forward checks."""
+                       warmup_s=1, dt_ms=0.5, reconstruction_workers=1,
+                       drive_mode="shared", drive_correlation=None, record_observability=False,dataset_id=None):
+    """Estimate windows once, then resume/parallelize independent forward checks.
+
+    Optional observability labels describe filtered regional PSP coefficients,
+    using the fitted observation gain; they never claim full-vertex recovery.
+    """
     if not isinstance(reconstruction_workers, int) or reconstruction_workers < 1:
         raise ValueError("reconstruction_workers must be a positive integer")
+    drive_settings = drive_config(drive_mode, drive_correlation)
+    if dataset_id is not None and (not isinstance(dataset_id,str) or not dataset_id.strip()):
+        raise ValueError('dataset_id must be a nonempty string')
+    atlas_identity=dict(atlas_id=atlas['manifest']['atlas_id'],
+        atlas_bundle_sha256=atlas['manifest']['bundle_sha256'],
+        projection_sha256=projection_hash(atlas['projection']) if 'projection' in atlas else None,
+        projection_mode=atlas['manifest'].get('projection_mode','area_unit_sum'),
+        connectivity_sha256=array_hash(connectivity))
     parameters = predict(model, eeg, device=device)
     _atomic_npz(output / "estimated_parameters.npz", **parameters, **provenance,
                 region_names=atlas["region_names"], aal_roi_numbers=atlas["aal_roi_numbers"],
@@ -281,18 +343,23 @@ def reconstruct_groups(model, eeg, provenance, atlas, connectivity, leadfield, o
     reconstruction_dir.mkdir(exist_ok=True)
     code_identity = hashlib.sha256(Path(__file__).read_bytes() +
                                     Path(__file__).with_name("simulator.py").read_bytes() +
-                                    (ROOT / "Simulation_G1/noise_covariance.py").read_bytes()).hexdigest()
+                                    Path(__file__).with_name("provenance.py").read_bytes() +
+                                    (ROOT / "Simulation_G1/noise_covariance.py").read_bytes() +
+                                    (ROOT / "Simulation_G1/observability.py").read_bytes()).hexdigest()
 
     def jobs():
         for index, (subject, condition) in enumerate(keys):
             chosen = np.flatnonzero((provenance["subject"] == subject) & (provenance["condition"] == condition))
             yield index, {"group_index": index, "subject": str(subject), "condition": str(condition),
+                'dataset_id':dataset_id,'atlas_identity':atlas_identity,
                 "eeg": eeg[chosen], "parameters": {key: value[chosen] for key, value in parameters.items()},
                 "provenance": {key: value[chosen] for key, value in provenance.items()},
                 "leadfield": leadfield, "connectivity": connectivity, "region_names": atlas["region_names"],
                 "aal_roi_numbers": atlas["aal_roi_numbers"], "prior_parameters": prior_parameters,
                 "sampling_rate_hz": sampling_rate_hz, "seed": seed + index * 3, "warmup_s": warmup_s,
-                "dt_ms": dt_ms, "output": str(reconstruction_dir), "code_identity": code_identity}
+                "dt_ms": dt_ms, "output": str(reconstruction_dir), "code_identity": code_identity,
+                "record_observability": bool(record_observability),
+                **drive_settings}
 
     results = [None] * len(keys)
 
@@ -326,6 +393,7 @@ def reconstruct_groups(model, eeg, provenance, atlas, connectivity, leadfield, o
 
 
 def validate_bank_identity(config, atlas, connectivity):
+    drive_config(config.get("drive_mode", "shared"), config.get("drive_correlation"))
     expected = {"atlas_id": atlas["manifest"]["atlas_id"],
                 "atlas_hash": atlas["manifest"]["bundle_sha256"],
                 "n_regions": len(atlas["region_names"]),
@@ -336,10 +404,28 @@ def validate_bank_identity(config, atlas, connectivity):
             raise ValueError(f"Source bank {key} differs from the reconstruction inputs")
 
 
+def _training_snr_summary(observed, noise):
+    """Global-power diagnostics; only one sample-sized temporary is formed."""
+    ratios = []
+    for sensor, nuisance in zip(observed, noise):
+        power = float(np.mean(np.asarray(nuisance, dtype=float) ** 2))
+        signal = float(np.mean((np.asarray(sensor, dtype=float) - nuisance) ** 2))
+        if power > 0 and signal > 0:
+            ratios.append(float(10 * np.log10(signal / power)))
+    return dict(n_informative=len(ratios), minimum_db=min(ratios) if ratios else None,
+                median_db=float(np.median(ratios)) if ratios else None, maximum_db=max(ratios) if ratios else None)
+
+
 def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epochs=150,
                 batch_size=8, profile="paper", device="auto", seed=42, sensor_snr_db=None,
                 max_reconstruction_groups=None, train_only=False, reconstruction_workers=1,
-                baseline_duration_s=2.):
+                baseline_duration_s=2., covariance_estimator='empirical', record_observability=False,
+                real_noise_registry=None, noise_records_by_split=None):
+    """Train the inverse; optionally attach per-draw regional observability labels.
+
+    Labels use filtered source PSP and baseline covariance before global z-score.
+    Enabling them adds individual validated source-bank reads, not bank simulation.
+    """
     output = Path(output_dir) / name
     output.mkdir(parents=True, exist_ok=True)
     bank_config = json.loads((Path(bank_dir) / "config.json").read_text())
@@ -352,27 +438,50 @@ def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epoch
                 "channels": channels, "sampling_rate_hz": rate, "window_samples": eeg_real.shape[-1],
                 "atlas_manifest": atlas["manifest"], "bank_config": bank_config,
                 "source_files": sources, "sensor_training_snr_db": sensor_snr_db,
+                "record_observability": bool(record_observability),
+                "observability_code_sha256": hashlib.sha256((ROOT / 'Simulation_G1/observability.py').read_bytes()).hexdigest(),
                 "observation_filter": "within-window fourth-order Butterworth 1-40Hz; same for synthetic/measured",
                 "human_parameter_truth_available": False, "reference_reproduction": "adapted cortical model; not million-sample replication"}
+    metadata.update(projection_sha256=projection_hash(atlas['projection']) if 'projection' in atlas else None,
+        projection_mode=atlas['manifest'].get('projection_mode','area_unit_sum'),
+        model_family='DualTimescaleJansenRit',source_unit='mV_PSP',
+        training_settings=dict(epochs=int(epochs),batch_size=int(batch_size),profile=profile,seed=int(seed)),
+        ancestry_policy='dataset-qualified subject/acquisition/fitting-window IDs in reconstructed sources')
     # The within-window filter needs more than its 27-sample padding length.
     if baseline_sample_count(baseline_duration_s, rate) <= 27:
         raise ValueError("G4 baseline needs at least 28 samples for the 1-40 Hz analysis filter")
     synthetic, targets, sensor_noise, baseline = project_bank(bank_dir, leadfield, eeg_real.shape[-1],
         sensor_snr_db=sensor_snr_db, seed=seed, return_baseline=True,
-        baseline_duration_s=baseline_duration_s)
+        baseline_duration_s=baseline_duration_s, real_noise_registry=real_noise_registry,
+        noise_records_by_split=noise_records_by_split, channel_names=channels,
+        excluded_noise_subject_ids=[_qualified(name, str(subject)) for subject in set(provenance['subject'])])
+    metadata['training_noise'] = baseline.get('noise_plan', dict(kind='iid_gaussian' if sensor_snr_db is not None else 'none'))
+    metadata['training_sensor_snr_summary'] = dict(pre_analysis_filter=_training_snr_summary(synthetic, sensor_noise),
+        definition='global power of synthetic clean target divided by added nuisance; measured on exported synthetic arrays')
     synthetic = analysis_filter(synthetic, rate)
     sensor_noise = analysis_filter(sensor_noise, rate)
+    metadata['training_sensor_snr_summary']['post_analysis_filter'] = _training_snr_summary(synthetic, sensor_noise)
     baseline_sensor = analysis_filter(baseline["baseline_sensor"], rate)
     covariance_arrays, covariance_metadata = [], []
+    observability_cache = {} if record_observability else None
     for index, noise in enumerate(sensor_noise):
         arrays, info = baseline_covariance_payload(baseline_sensor[index], noise,
-            average_reference=True, baseline_metadata=baseline["metadata"][index])
+            average_reference=True, baseline_metadata=baseline["metadata"][index],
+            estimator=covariance_estimator)
+        if record_observability:
+            sample_path = Path(bank_dir) / f'sample_{index:06d}.npz'
+            with np.load(sample_path, allow_pickle=False) as sample:
+                source = _validate_sample(sample, bank_config, index, sample_path)[:, :eeg_real.shape[-1]]
+            info['observability'] = _regional_observability(leadfield, source, arrays['noise_covariance'],
+                rate, observability_cache, demean_before_filter=True)
         covariance_arrays.append(arrays)
         covariance_metadata.append(info)
     covariance_file = "training_noise_covariance.npz"
     covariance_manifest = dict(file=covariance_file, units="projected_sensor_units_squared",
         channels=channels, covariance_target="all_simulated_network",
         default_covariance="baseline_only", baseline_duration_s=float(baseline_duration_s),
+        covariance_estimator=covariance_estimator,
+        record_observability=bool(record_observability),
         signal_stage="after_analysis_filter_before_inverse_global_zscore",
         normalization_rule="if sensor is divided by scale, divide covariance by scale squared",
         preprocessing=metadata["observation_filter"], average_reference=True,
@@ -408,6 +517,12 @@ def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epoch
     history["heldout_test_metrics"] = parameter_metrics(predictions, {key: value[test] for key, value in truth.items()})
     prior = {key: np.broadcast_to(value[splits["train"]].mean(axis=0), value[test].shape) for key, value in truth.items()}
     history["prior_mean_test_metrics"] = parameter_metrics(prior, {key: value[test] for key, value in truth.items()})
+    history['heldout_recovery_detail']=recovery_detail(predictions,{key:value[test] for key,value in truth.items()},prior)
+    history['heldout_parameter_file']='heldout_parameter_recovery.npz'
+    _atomic_npz(output/history['heldout_parameter_file'],draw_indices=test,
+        **{'prediction_'+key:value for key,value in predictions.items()},
+        **{'truth_'+key:value[test] for key,value in truth.items()},
+        **{'prior_'+key:value for key,value in prior.items()})
     calibration = np.asarray(splits["calibration"])
     calibrated = predict(model, synthetic[calibration], batch_size=batch_size, device=device)
     history["synthetic_marginal_calibration"] = {}
@@ -427,7 +542,10 @@ def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epoch
     results = reconstruct_groups(model, eeg_real, provenance, atlas, connectivity, leadfield, output,
         sampling_rate_hz=rate, prior_parameters=prior_parameters, seed=seed, device=device,
         max_groups=max_reconstruction_groups, warmup_s=bank_config["warmup_s"], dt_ms=bank_config["dt_ms"],
-        reconstruction_workers=reconstruction_workers)
+        reconstruction_workers=reconstruction_workers,
+        record_observability=record_observability,
+        dataset_id=name,
+        **drive_config(bank_config.get("drive_mode", "shared"), bank_config.get("drive_correlation")))
     report = {"dataset": name, "training_report": "training_report.json", "checkpoint": "best_checkpoint.pt",
               "estimated_parameters": "estimated_parameters.npz", "groups": results,
               "atlas_boundary_limitation": atlas["manifest"]["template_limitation"],
@@ -437,7 +555,7 @@ def run_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, epoch
 
 
 def reconstruct_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, *, device="auto", seed=42,
-                        max_reconstruction_groups=None, reconstruction_workers=1):
+                        max_reconstruction_groups=None, reconstruction_workers=1, record_observability=False):
     """Apply a completed checkpoint to additional subjects without retraining."""
     output = Path(output_dir) / name
     checkpoint = torch.load(output / "best_checkpoint.pt", map_location="cpu", weights_only=True)
@@ -460,7 +578,10 @@ def reconstruct_dataset(name, paths, atlas, connectivity, bank_dir, output_dir, 
     results = reconstruct_groups(model, eeg, provenance, atlas, connectivity, leadfield, output,
         sampling_rate_hz=rate, prior_parameters=prior, seed=seed, device=device,
         max_groups=max_reconstruction_groups, warmup_s=config["warmup_s"], dt_ms=config["dt_ms"],
-        reconstruction_workers=reconstruction_workers)
+        reconstruction_workers=reconstruction_workers,
+        record_observability=record_observability,
+        dataset_id=name,
+        **drive_config(config.get("drive_mode", "shared"), config.get("drive_correlation")))
     report = {"dataset": name, "training_report": "training_report.json", "checkpoint": "best_checkpoint.pt",
               "estimated_parameters": "estimated_parameters.npz", "groups": results,
               "measured_window_count": len(eeg), "measured_subjects": sorted(set(provenance["subject"])),
@@ -474,22 +595,32 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--data-dir", type=Path, required=True)
-    parser.add_argument("--atlas-dir", type=Path, default=ROOT / "Anatomy/G4_AAL_cortical")
+    parser.add_argument("--atlas-dir", type=Path, default=ROOT / "Anatomy/G4_AAL_cortical_membership")
     parser.add_argument("--connectivity-dir", type=Path, default=ROOT / "Anatomy/G4_resources")
-    parser.add_argument("--bank-dir", type=Path, default=ROOT / "generated_simulation_dataset/G4/aal78_bank_256hz_v1")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "generated_simulation_dataset/G4/trained_256hz")
+    parser.add_argument("--bank-dir", type=Path, default=ROOT / "generated_simulation_dataset/G4/aal78_membership_bank_256hz_v1")
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "generated_simulation_dataset/G4/trained_membership_256hz")
     parser.add_argument("--epochs", type=int, default=150)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--profile", choices=["paper", "compact"], default="paper")
     parser.add_argument("--device", default="auto")
     parser.add_argument("--sensor-snr-db", type=float, default=None)
+    parser.add_argument('--real-noise-registry', type=Path)
+    parser.add_argument('--noise-records-config', type=Path,
+                        help='JSON donor IDs by train/validation/calibration/test; all ancestry disjoint across folds')
     parser.add_argument("--baseline-duration-s", type=float, default=2.)
+    parser.add_argument('--covariance-estimator', choices=('empirical', 'oas'), default='empirical')
+    parser.add_argument('--record-observability', action='store_true',
+                        help='Record regional PSP observability labels; not full vertex-source identifiability')
     parser.add_argument("--max-reconstruction-groups", type=int, default=None)
     parser.add_argument("--reconstruction-workers", type=int, default=1)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--train-only", action="store_true")
     mode.add_argument("--reconstruct-only", action="store_true")
     args = parser.parse_args()
+    if (args.real_noise_registry is None) != (args.noise_records_config is None):
+        parser.error('--real-noise-registry and --noise-records-config are required together')
+    if args.reconstruct_only and args.real_noise_registry is not None:
+        parser.error('Measured-noise augmentation options apply to training, not --reconstruct-only')
     paths = sorted(args.data_dir.glob("*.npz"))
     if not paths:
         parser.error("No prepared measured-EEG NPZ files found")
@@ -498,12 +629,18 @@ def main():
     if args.reconstruct_only:
         reconstruct_dataset(args.dataset, paths, atlas, connectivity, args.bank_dir, args.output_dir,
                             device=args.device, max_reconstruction_groups=args.max_reconstruction_groups,
-                            reconstruction_workers=args.reconstruction_workers)
+                            reconstruction_workers=args.reconstruction_workers,
+                            record_observability=args.record_observability)
         return
     run_dataset(args.dataset, paths, atlas, connectivity, args.bank_dir, args.output_dir,
                 epochs=args.epochs, batch_size=args.batch_size, profile=args.profile,
                 device=args.device, sensor_snr_db=args.sensor_snr_db,
+                real_noise_registry=args.real_noise_registry,
+                noise_records_by_split=(json.loads(args.noise_records_config.read_text(encoding='utf-8'))
+                                        if args.noise_records_config else None),
                 baseline_duration_s=args.baseline_duration_s,
+                covariance_estimator=args.covariance_estimator,
+                record_observability=args.record_observability,
                 max_reconstruction_groups=args.max_reconstruction_groups, train_only=args.train_only,
                 reconstruction_workers=args.reconstruction_workers)
 
