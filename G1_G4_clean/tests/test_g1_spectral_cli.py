@@ -7,6 +7,35 @@ from simulate_source_sensor import build_parser, build_g1_config
 
 
 class SpectralCLITests(unittest.TestCase):
+    def test_preset_defaults_and_explicit_legacy_values(self):
+        args=build_parser().parse_args(['--engine','g1','--g1-preset','rest_calibrated'])
+        config=build_g1_config(args)
+        self.assertEqual(config.srate,256)
+        self.assertEqual(config.time_window,(0,2))
+        self.assertEqual(config.sensor_snr_db,20)
+        self.assertEqual(config.covariance_estimator,'oas')
+        args=build_parser().parse_args(['--engine','g1','--g1-preset','rest_calibrated',
+            '--srate-hz=500','--duration-s','1','--sensor-snr-db','10','--covariance-estimator','empirical'])
+        config=build_g1_config(args)
+        self.assertEqual(config.srate,500)
+        self.assertEqual(config.time_window,(0,1))
+        self.assertEqual(config.sensor_snr_db,10)
+        self.assertEqual(config.covariance_estimator,'empirical')
+
+    def test_preset_spectral_override_and_conflicting_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'spectral.json'
+            path.write_text(json.dumps({'alpha_power_ratio':.1}),encoding='utf-8')
+            args=build_parser().parse_args(['--engine','g1','--g1-preset','rest_calibrated',
+                '--g1-spectral-config',str(path),'--resource-root',directory])
+            config=build_g1_config(args)
+            self.assertEqual(config.spectral['alpha_power_ratio'],.1)
+            self.assertEqual(config.spectral['alpha_hz'],10.5)
+            self.assertTrue(Path(config.spectral['network_path']).is_relative_to(Path(directory)))
+        args=build_parser().parse_args(['--engine','g1','--g1-preset','erp_network','--source-type','erp'])
+        with self.assertRaisesRegex(ValueError,'omit --source-type'):
+            build_g1_config(args)
+
     def test_spectral_json_and_explicit_mode_reach_generator(self):
         with tempfile.TemporaryDirectory() as directory:
             path=Path(directory)/'spectral.json'

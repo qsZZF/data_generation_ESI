@@ -290,3 +290,14 @@ NMM存储新增验证：旧schema1兼容、新schema2的dense/int16/fixed-k解�
 Python依赖使用原工作区已有环境，没有重新安装；确切版本见`tested_environment.json`。
 验证过程中的初始沙箱启动及Windows多进程测试启动器问题已经在集合外的验证脚本中处理；
 上面报告的是修正启动器后的成功结果，不涉及修改复制版模型算法。
+
+## 2026-11-12: opt-in G1 network presets
+
+The exact publication tree passed isolated discovery: 617 tests, 606 passed,
+11 optional/external-resource skips, zero failures or errors. Imports resolved
+inside the published collection, without the original source tree.
+
+The original and clean copies also passed real-fsaverage5 checks for all three
+presets, two-second baselines, covariance reproduction, exact seeded replay and
+18 metadata-only recipes. Corresponding source/sensor/baseline/covariance arrays
+were byte-identical between the two copies. Existing defaults remain unchanged.

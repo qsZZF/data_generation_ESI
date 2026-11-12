@@ -13,6 +13,7 @@ default to IID measurement noise and use spatially correlated source backgrounds
 only with explicitly supplied cortical resources.
 
 - [Current training policy and QC](G1_G4_clean/QUALITY_AND_TRAINING_POLICY.md)
+- [Calibrated resting and distributed ERP presets](G1_G4_clean/G1_NETWORK_PRESETS.md)
 - [Recipe audit and measured-noise comparison](G1_G4_clean/OPTIMIZATION_RESULTS.md)
 - [Named-array API and sample storage](G1_G4_clean/PRODUCTION_SAMPLE_INTERFACE.md)
 - [G4 export to the unified NMM bank](G1_G4_clean/G4_UNIFIED_EXPORT.md)
@@ -23,6 +24,13 @@ Measured-noise augmentation remains opt-in: the bounded experiment improved
 held-out measured PSD fitting but reduced performance on the IID test domain.
 G4 regional physiological parameter recovery remains unvalidated. Historical
 reports retain their original run scope and publication-status notes.
+
+The November 12 update adds opt-in `rest_calibrated`, `rest_lbo`, and
+`erp_network` presets plus metadata-only network training recipes. Existing
+defaults remain unchanged. The calibrated resting preset has bounded measured
+EEG comparisons; distributed ERP has mechanism validation, not canonical
+empirical ERP validation. All presets retain the two-second baseline and
+baseline-estimated noise covariance.
 
 Sensor samples include a separately generated baseline. The default noise
 covariance is estimated from that baseline; event-component covariance is

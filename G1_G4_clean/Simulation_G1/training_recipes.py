@@ -77,7 +77,8 @@ def generator_identity():
     return {"files": {name: _digest(folder/name) for name in
                       ("g1_simulation_core.py", "spatial.py", "training_recipes.py", "noise_covariance.py",
                        "geometry.py", "spectral.py", "cortical.py", "geodesic.py",
-                       "amplitude.py", "observability.py", "multiscale.py", "real_noise.py", "sample_io.py", "quality.py")},
+                       "amplitude.py", "observability.py", "multiscale.py", "real_noise.py", "sample_io.py", "quality.py",
+                       "presets.py", "network_erp.py", "wx_pilot.py", "wx_partitioned.py", "network_recipes.py")},
             "python": platform.python_version(), "numpy": np.__version__, "scipy": scipy.__version__}
 
 
@@ -417,6 +418,8 @@ class RecipeDataset:
         if self.manifest["assets"] != asset_identity(simulator):
             raise ValueError("Recipe mesh/leadfield differs from the supplied simulator")
         self._check_noise_registry()
+        self._spectral_resource_signatures = {}
+        self._check_spectral_resources()
         self.simulator = simulator
         from .real_noise import NoiseWindowReader
         self.noise_reader = NoiseWindowReader() if noise_reader is None else noise_reader
@@ -439,6 +442,16 @@ class RecipeDataset:
         if resource is not None and _digest(resource['path']) != resource['sha256']:
             raise ValueError('Noise registry checksum differs from frozen recipes')
 
+    def _check_spectral_resources(self):
+        for resource in self.manifest.get('spectral_resources', []):
+            path = Path(resource['path'])
+            stat = path.stat()
+            signature = (stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+            if self._spectral_resource_signatures.get(str(path)) != signature:
+                if _digest(path) != resource['sha256']:
+                    raise ValueError('Spectral resource checksum differs from frozen recipes')
+                self._spectral_resource_signatures[str(path)] = signature
+
     def _read(self, table, index):
         key = table["file"]
         if key not in self._indexes:
@@ -455,6 +468,7 @@ class RecipeDataset:
         if isinstance(index, bool) or not isinstance(index, (int, np.integer)) or not 0 <= index < len(self):
             raise IndexError("Recipe index outside dataset")
         self._check_noise_registry()
+        self._check_spectral_resources()
         if self._selection is not None:
             index = int(self._selection[index])
         shard = self.manifest["shards"][bisect_right(self._starts, index)-1]
@@ -468,9 +482,10 @@ class RecipeDataset:
         self._support_cache.move_to_end(support_index)
         if support["support_id"] != row["support_id"] or support["split"] != row["split"]:
             raise ValueError("Recipe support/split identity mismatch")
-        config = {**self.manifest["base_config"], **row["config"],
-                  "n_patch": len(support["seed_vertices"]),
-                  **{key: support[key] for key in ("seed_vertices", "patch_vertices", "patch_area_mm2", "min_seed_distance_mm")}}
+        config = {**self.manifest["base_config"], **row["config"]}
+        if support.get('kind') != 'spectral_realization_group':
+            config.update(n_patch=len(support['seed_vertices']),
+                          **{key: support[key] for key in ('seed_vertices', 'patch_vertices', 'patch_area_mm2', 'min_seed_distance_mm')})
         return G1SimulationConfig(**config), row
 
     def __getitem__(self, index):

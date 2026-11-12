@@ -8,6 +8,8 @@
 
 ## 目录与入口
 
+新增可选静息与分布式ERP预设及配置型训练配方，见 [G1网络预设](G1_NETWORK_PRESETS.md)。默认生成行为不变；独立使用本合集时，通过`--resource-root`指定外部解剖与LBO资源目录。
+
 G1 现支持皮层 LBO / LBO＋网络图的 rest、ERP、ERSP 生成，以及小规模真实 EEG 特征对照。
 调用和候选配置的适用范围见 [G1 使用指南](Simulation_G1/G1_usage_guide.md)。
 

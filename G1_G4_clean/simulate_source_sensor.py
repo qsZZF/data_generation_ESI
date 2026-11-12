@@ -23,6 +23,7 @@ if str(ROOT) not in sys.path:
 
 from Simulation_G1.g1_simulation_core import G1SimulationConfig, G1SourceSimulator, _json_safe, estimate_power_spectrum_summary
 from Simulation_G1.spatial import SpatialDynamicsConfig
+from Simulation_G1.presets import PRESET_NAMES, make_g1_config
 from Simulation_G1.noise_covariance import NOISE_ARRAY_KEYS
 from Simulation_G1.sample_io import save_sample_directory
 from Simulation_G2.g2_simulation_core import (
@@ -165,10 +166,16 @@ def build_spatial_config(args: argparse.Namespace) -> SpatialDynamicsConfig:
 def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
     spectral = (json.loads(Path(args.g1_spectral_config).read_text(encoding="utf-8"))
                 if args.g1_spectral_config else {})
-    if args.source_type not in G1_WAVEFORM_PRESETS:
+    preset = getattr(args, 'g1_preset', None)
+    if getattr(args, 'resource_root', None) is not None and not preset:
+        raise ValueError('--resource-root requires --g1-preset; use --anatomy-dir for ordinary generation')
+    if preset and args.source_type is not None:
+        raise ValueError('--g1-preset already defines the source; omit --source-type')
+    source_type = args.source_type or 'erp'
+    if source_type not in G1_WAVEFORM_PRESETS:
         raise ValueError(f"Unsupported G1 source_type {args.source_type!r}; choose from {sorted(G1_WAVEFORM_PRESETS)}")
     duration_s = float(args.duration_s)
-    return G1SimulationConfig(
+    config = G1SimulationConfig(
         source_model=args.g1_source_model, spectral=spectral,
         multiscale=(json.loads(args.g1_multiscale_config.read_text(encoding='utf-8'))
                     if args.g1_multiscale_config else {}),
@@ -187,7 +194,7 @@ def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
         decay_mm=float(args.decay_mm),
         min_seed_distance_mm=float(args.min_seed_distance_mm),
         spatial=build_spatial_config(args),
-        waveform_params=[G1_WAVEFORM_PRESETS[args.source_type]],
+        waveform_params=[G1_WAVEFORM_PRESETS[source_type]],
         source_background_type=args.source_background_type,
         source_background_spectral=(json.loads(Path(args.source_background_config).read_text(encoding='utf-8'))
                                     if args.source_background_config else {}),
@@ -212,12 +219,27 @@ def build_g1_config(args: argparse.Namespace) -> G1SimulationConfig:
         sensor_noise_std=(args.sensor_noise_std[0] if len(args.sensor_noise_std) == 1 else args.sensor_noise_std) if args.sensor_noise_std else None,
         record_observability=args.record_observability,
     )
+    if preset:
+        values = asdict(config)
+        # Parser defaults must not overwrite the opt-in preset's validated settings.
+        destinations = dict(source_model='g1_source_model', srate='srate_hz',
+            time_window='duration_s', baseline_duration_s='baseline_duration_s',
+            sensor_noise_type='sensor_noise_type', sensor_snr_db='sensor_snr_db',
+            sensor_snr_mode='sensor_snr_mode', covariance_estimator='covariance_estimator',
+            average_reference='average_reference')
+        for field, destination in destinations.items():
+            if destination not in getattr(args, '_explicit_options', set()):
+                values.pop(field)
+        return make_g1_config(preset, resource_root=args.resource_root, **values)
+    return config
 
 
 def run_g1(args: argparse.Namespace, output_dir: Path) -> dict[str, Any]:
     if args.atlas is not None:
         raise ValueError("--atlas is available only with --engine g2 or g3")
-    anatomy_dir = Path(args.anatomy_dir)
+    anatomy_dir = (Path(args.resource_root)/'Anatomy' if getattr(args,'g1_preset',None)
+                   and args.resource_root and 'anatomy_dir' not in args._explicit_options
+                   else Path(args.anatomy_dir))
     cortex_path = Path(args.cortex_path) if args.cortex_path else anatomy_dir / "Cortex_FS_20k.mat"
     leadfield_path = Path(args.leadfield_path) if args.leadfield_path else anatomy_dir / "Gain_20k_FS.mat"
     cortex = load_brainstorm_cortex(cortex_path, use_cortex_mask=args.cortex_mask)
@@ -599,8 +621,25 @@ def plot_standard_overview(
     plt.close(fig)
 
 
+class _ExplicitOptionsParser(argparse.ArgumentParser):
+    def parse_known_args(self, args=None, namespace=None):
+        tokens = sys.argv[1:] if args is None else list(args)
+        parsed, remaining = super().parse_known_args(tokens, namespace)
+        explicit = set()
+        for token in tokens:
+            option = token.split('=',1)[0]
+            if option in self._option_string_actions:
+                explicit.add(self._option_string_actions[option].dest)
+            elif option.startswith('--') and len(option)>2:
+                matches = [name for name in self._option_string_actions if name.startswith(option)]
+                if len(matches)==1:
+                    explicit.add(self._option_string_actions[matches[0]].dest)
+        parsed._explicit_options = explicit
+        return parsed, remaining
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="High-level interface for simulated source activity and EEG/MEG-like sensor data.")
+    parser = _ExplicitOptionsParser(description="High-level interface for simulated source activity and EEG/MEG-like sensor data.")
     parser.add_argument("--engine", choices=["g1", "g2", "g3"], default="g2")
     parser.add_argument("--atlas", choices=ATLAS_CHOICES, default=None,
                         help="G2 bank/G3 atlas: legacy 998 nodes (994 exported), or 78 cortical AAL regions")
@@ -662,6 +701,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--covariance-estimator', choices=('empirical', 'oas'), default='empirical')
     parser.add_argument("--g1-source-model", choices=("patch", "lbo", "lbo_network"), default="patch")
     parser.add_argument("--g1-spectral-config", type=Path, help="JSON settings for the G1 spectral source model")
+    parser.add_argument('--g1-preset', choices=PRESET_NAMES, help='Opt-in calibrated rest or distributed ERP configuration')
+    parser.add_argument('--resource-root', type=Path, help='G1 preset resource root (including Anatomy and basis/network assets)')
     parser.add_argument('--g1-multiscale-config', type=Path, help='Optional spectral foreground residual settings JSON')
     parser.add_argument('--background-multiscale-config', type=Path, help='Optional spectral_rest background residual settings JSON')
     parser.add_argument("--average-reference", action=argparse.BooleanOptionalAction, default=True)
@@ -684,6 +725,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.engine != 'g1' and (args.g1_preset or args.resource_root):
+        parser.error('--g1-preset and --resource-root require --engine g1')
     if args.engine != 'g1' and (args.sensor_noise_type == 'real' or args.real_noise_registry
             or args.real_noise_record_id or args.real_noise_split or args.channel_names
             or args.allow_combined_real_source_background or args.g1_multiscale_config
@@ -707,7 +750,8 @@ def main(argv: list[str] | None = None) -> int:
             args.source_type = args.source_type or "nmm_spike"
         manifest = run_g2(args, output_dir)
     elif args.engine == "g1":
-        args.source_type = args.source_type or "erp"
+        if not args.g1_preset:
+            args.source_type = args.source_type or "erp"
         manifest = run_g1(args, output_dir)
     else:
         args.source_type = args.source_type or "resting_jr"

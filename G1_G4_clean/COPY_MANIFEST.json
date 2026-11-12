@@ -43,9 +43,9 @@
     },
     "simulate_source_sensor.py": {
       "original": "simulate_source_sensor.py",
-      "original_sha256": "0811663400f423053690ee1ee905b9befa80652318a115fe2d972eea3719dce3",
-      "copied_sha256": "0811663400f423053690ee1ee905b9befa80652318a115fe2d972eea3719dce3",
-      "bytes": 38506,
+      "original_sha256": "d738aac9e8bca9c9cb1ebe5fec6327bce7f1aa3c84b3e3456210445ca8a53fb4",
+      "copied_sha256": "d738aac9e8bca9c9cb1ebe5fec6327bce7f1aa3c84b3e3456210445ca8a53fb4",
+      "bytes": 41195,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -598,9 +598,9 @@
     },
     "Simulation_G1/training_recipes.py": {
       "original": "Simulation_G1/training_recipes.py",
-      "original_sha256": "63e891789e13b3c9ed2f589cb44725f5be352a8f462ead12fb0029d3612aee42",
-      "copied_sha256": "63e891789e13b3c9ed2f589cb44725f5be352a8f462ead12fb0029d3612aee42",
-      "bytes": 33405,
+      "original_sha256": "4f10cf4b2b8b4debfb9b6cde9f3b16c02914a920ff5b47c00c2bd2e326fb4bc7",
+      "copied_sha256": "4f10cf4b2b8b4debfb9b6cde9f3b16c02914a920ff5b47c00c2bd2e326fb4bc7",
+      "bytes": 34288,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -758,9 +758,9 @@
     },
     "Simulation_G1/spectral.py": {
       "original": "Simulation_G1/spectral.py",
-      "original_sha256": "4192c55304c7b9cd31053c474cd2548388062a680ec02ff48df1d77bb3b09626",
-      "copied_sha256": "4192c55304c7b9cd31053c474cd2548388062a680ec02ff48df1d77bb3b09626",
-      "bytes": 31695,
+      "original_sha256": "def76bc7986880ab1aed0eb3f8bc75c6dbaa71d8de0b697f0739ed68945879bd",
+      "copied_sha256": "def76bc7986880ab1aed0eb3f8bc75c6dbaa71d8de0b697f0739ed68945879bd",
+      "bytes": 33079,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -846,9 +846,9 @@
     },
     "tests/test_g1_spectral_cli.py": {
       "original": "tests/test_g1_spectral_cli.py",
-      "original_sha256": "88e109fd4ff1816424fc0f4c941364f2c42ecdbc009a344442c6dbe3da46819e",
-      "copied_sha256": "88e109fd4ff1816424fc0f4c941364f2c42ecdbc009a344442c6dbe3da46819e",
-      "bytes": 2260,
+      "original_sha256": "43fd43e14a217d28beaeef7c1410f2ec633f091a1769c72a77315e62ef54b7c6",
+      "copied_sha256": "43fd43e14a217d28beaeef7c1410f2ec633f091a1769c72a77315e62ef54b7c6",
+      "bytes": 4016,
       "changes": [],
       "byte_identical_to_original": true
     },
@@ -1523,6 +1523,102 @@
       "bytes": 10652,
       "changes": [],
       "byte_identical_to_original": true
+    },
+    "Simulation_G1/network_erp.py": {
+      "original": "Simulation_G1/network_erp.py",
+      "original_sha256": "1e6b47ddd4e344d48f08ec409cc4f52267be3ae12488131da0b98930abb555cc",
+      "copied_sha256": "1e6b47ddd4e344d48f08ec409cc4f52267be3ae12488131da0b98930abb555cc",
+      "bytes": 8010,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/network_recipes.py": {
+      "original": "Simulation_G1/network_recipes.py",
+      "original_sha256": "06903de5ae6e0f941869fbb7402c1cfd314a88ade8d1163eddbc3f78375f461d",
+      "copied_sha256": "06903de5ae6e0f941869fbb7402c1cfd314a88ade8d1163eddbc3f78375f461d",
+      "bytes": 7916,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/presets.py": {
+      "original": "Simulation_G1/presets.py",
+      "original_sha256": "3afbc025752a861bf13423df5de6d9e7314472263078ed26b231a97507bda032",
+      "copied_sha256": "3afbc025752a861bf13423df5de6d9e7314472263078ed26b231a97507bda032",
+      "bytes": 2758,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/wx_pilot.py": {
+      "original": "Simulation_G1/wx_pilot.py",
+      "original_sha256": "ec3afb2eb4070d783bfb8da9c4acdedefc1dd9705fb7036787fce0665e04ce92",
+      "copied_sha256": "ec3afb2eb4070d783bfb8da9c4acdedefc1dd9705fb7036787fce0665e04ce92",
+      "bytes": 10819,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "Simulation_G1/wx_partitioned.py": {
+      "original": "Simulation_G1/wx_partitioned.py",
+      "original_sha256": "b5934322f49ba68330141289d6e498bb95084feba6d68bfa5f54502a95e9b5ee",
+      "copied_sha256": "b5934322f49ba68330141289d6e498bb95084feba6d68bfa5f54502a95e9b5ee",
+      "bytes": 6149,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "G1_NETWORK_PRESETS.md": {
+      "original": "G1_NETWORK_PRESETS.md",
+      "original_sha256": "aa51bc7e3af9a729ba3044088def98ec4d8545c52e9d55673557b17402f4d7c7",
+      "copied_sha256": "aa51bc7e3af9a729ba3044088def98ec4d8545c52e9d55673557b17402f4d7c7",
+      "bytes": 5000,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "scripts/validate_g1_network_presets.py": {
+      "original": "scripts/validate_g1_network_presets.py",
+      "original_sha256": "b239d4d72fd54e1e80ac895b9a89ca0d4aa0aded4ff632482d0c49e4af6d832d",
+      "copied_sha256": "b239d4d72fd54e1e80ac895b9a89ca0d4aa0aded4ff632482d0c49e4af6d832d",
+      "bytes": 4969,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_network_erp.py": {
+      "original": "tests/test_g1_network_erp.py",
+      "original_sha256": "ab76b2138be41724460b25ef10094a1f4728e3c7abbb4956f3b5239155967253",
+      "copied_sha256": "ab76b2138be41724460b25ef10094a1f4728e3c7abbb4956f3b5239155967253",
+      "bytes": 5670,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_network_recipes.py": {
+      "original": "tests/test_g1_network_recipes.py",
+      "original_sha256": "2787119fd7d1c28e3d4ef76a9844b761f25fd0f446c6a807809e6446ef4c206b",
+      "copied_sha256": "2787119fd7d1c28e3d4ef76a9844b761f25fd0f446c6a807809e6446ef4c206b",
+      "bytes": 4209,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_presets.py": {
+      "original": "tests/test_g1_presets.py",
+      "original_sha256": "795394a31e5ee83a58665c60bb670a8acdc9a1cba44b7a51df3a0d6cd0716ecf",
+      "copied_sha256": "795394a31e5ee83a58665c60bb670a8acdc9a1cba44b7a51df3a0d6cd0716ecf",
+      "bytes": 2343,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_wx_pilot.py": {
+      "original": "tests/test_g1_wx_pilot.py",
+      "original_sha256": "04ba2f16b1c4f96786b64854c56c4eb1f04ef1ce0e642b288c4a4db742fdc9e1",
+      "copied_sha256": "04ba2f16b1c4f96786b64854c56c4eb1f04ef1ce0e642b288c4a4db742fdc9e1",
+      "bytes": 3732,
+      "changes": [],
+      "byte_identical_to_original": true
+    },
+    "tests/test_g1_wx_partitioned.py": {
+      "original": "tests/test_g1_wx_partitioned.py",
+      "original_sha256": "99d99bf9179a474d30fe1fac1984343227fa2080489502d0b33665c28d7b65fb",
+      "copied_sha256": "99d99bf9179a474d30fe1fac1984343227fa2080489502d0b33665c28d7b65fb",
+      "bytes": 3481,
+      "changes": [],
+      "byte_identical_to_original": true
     }
   },
   "completed_at": "2026-10-30T19:39:18.314595+00:00",
@@ -1536,8 +1632,8 @@
       "bytes": 4040
     },
     "README.md": {
-      "sha256": "aec5ffd2a346b2e4d2578eb9f7094c4d285556acd642d945eaf7bee5ac9de1c4",
-      "bytes": 5512
+      "sha256": "3b92a4ac71304c9d3b7022fdbda03a44bcc10c709ae8e8e1697a7dc25761c2c2",
+      "bytes": 5742
     },
     "requirements.txt": {
       "sha256": "0a70ba3e8774da01cfa4f378ff0570084a6b00a83cdadd060e85563fa9ff3235",
@@ -1552,8 +1648,8 @@
       "bytes": 420
     },
     "VALIDATION.md": {
-      "sha256": "91adc3778a94faf01a470e21d484fa2fe30fc494bd87622a6e90a25e736e690c",
-      "bytes": 25581
+      "sha256": "c85ea00a13e037084e752f34f8d131a8e2f31a5cf1966e88c2cf0086c5bcf3c1",
+      "bytes": 26179
     },
     ".gitattributes": {
       "sha256": "97c8ed12200329359dd22869ad29ce96d5b8600d5b97a6cf04598f83892488dd",
@@ -2421,5 +2517,46 @@
     ],
     "ast_equivalence_verified": true,
     "scope": "code/configs/tests/docs; existing curated LFS assets preserved"
+  },
+  "g1_network_presets_integration": {
+    "date": "2026-11-12",
+    "files": [
+      "Simulation_G1/spectral.py",
+      "Simulation_G1/training_recipes.py",
+      "Simulation_G1/network_erp.py",
+      "Simulation_G1/network_recipes.py",
+      "Simulation_G1/presets.py",
+      "Simulation_G1/wx_pilot.py",
+      "Simulation_G1/wx_partitioned.py",
+      "simulate_source_sensor.py",
+      "G1_NETWORK_PRESETS.md",
+      "scripts/validate_g1_network_presets.py",
+      "tests/test_g1_network_erp.py",
+      "tests/test_g1_network_recipes.py",
+      "tests/test_g1_presets.py",
+      "tests/test_g1_spectral_cli.py",
+      "tests/test_g1_wx_pilot.py",
+      "tests/test_g1_wx_partitioned.py"
+    ],
+    "default_changed": false,
+    "note": "WX helpers are production dependencies; experiment datasets and scripts not copied",
+    "validation": {
+      "root_g1_tests": 105,
+      "root_recipe_tests": 38,
+      "clean_g1_tests": 101,
+      "clean_recipe_tests": 38,
+      "shared_cli_tests": 16,
+      "transactional_tests": 7,
+      "real_fs5_presets": 3,
+      "recipe_count": 18,
+      "root_clean_array_hashes_identical": true
+    },
+    "publication_tests": {
+      "tests": 617,
+      "passed": 606,
+      "skipped": 11,
+      "failures": 0,
+      "errors": 0
+    }
   }
 }

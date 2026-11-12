@@ -24,7 +24,8 @@ DEFAULTS = dict(
     beta_hz=20., beta_width_hz=3., beta_power_ratio=0.,
     network_fraction=.3, scenario='rest', event_onset_s=.2, event_duration_s=.5,
     erp_latency_s=.1, erp_width_s=.05, erp_amplitude=3., erp_latency_jitter_s=0.,
-    erp_spatial_mode='random',
+    erp_spatial_mode='random', erp_local_width_mm=35., erp_roi_power_ratio=2.,
+    erp_component_interval_s=.2, erp_secondary_gain=.2,
     ersp_depth=.5, ersp_beta_depth=0., ersp_onset_jitter_s=0.)
 ASSET_KEYS = {'basis_path', 'basis_sha256', 'network_path', 'network_sha256',
               'network_indices', 'n_modes'}
@@ -39,8 +40,10 @@ def _settings(settings):
     resolved = {**DEFAULTS, **settings}
     if resolved['scenario'] not in ('rest', 'erp', 'ersp'):
         raise ValueError('spectral scenario must be rest, erp or ersp')
-    if resolved['erp_spatial_mode'] not in ('random', 'fixed'):
-        raise ValueError('erp_spatial_mode must be random or fixed')
+    if resolved['erp_spatial_mode'] not in ('random', 'fixed', 'geodesic'):
+        raise ValueError('erp_spatial_mode must be random, fixed or geodesic')
+    if resolved['erp_spatial_mode'] == 'geodesic' and resolved['scenario'] != 'erp':
+        raise ValueError('geodesic ERP requires scenario=erp')
     for key in set(DEFAULTS) - {'scenario', 'erp_spatial_mode'}:
         value = resolved[key]
         if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.number)) or not np.isfinite(value):
@@ -58,6 +61,11 @@ def _settings(settings):
         raise ValueError('ersp_depth must be >= -1 to keep the alpha amplitude nonnegative')
     if resolved['ersp_beta_depth'] < -1:
         raise ValueError('ersp_beta_depth must be >= -1 to keep the beta amplitude nonnegative')
+    for key in ('erp_local_width_mm', 'erp_roi_power_ratio', 'erp_component_interval_s'):
+        if resolved[key] <= 0:
+            raise ValueError(f'{key} must be positive')
+    if not 0 <= resolved['erp_secondary_gain'] <= 1:
+        raise ValueError('erp_secondary_gain must lie in [0,1]')
     return resolved
 
 
@@ -88,6 +96,8 @@ def generate_coefficients(bundle, settings, *, srate, time_window, baseline_dura
     resting-background switch keeps both disjoint segments as nuisance activity.
     """
     resolved = _settings(settings)
+    if resolved['erp_spatial_mode'] == 'geodesic':
+        raise ValueError('geodesic ERP requires the mesh-aware generate_sample/source interface')
     if _rest_as_background and resolved['scenario'] != 'rest':
         raise ValueError('Rest background generation requires scenario=rest')
     baseline_n = baseline_sample_count(baseline_duration_s, srate)
@@ -290,6 +300,7 @@ def _load_assets(simulator, resolved, source_model):
     _check_asset_hashes(resolved, basis_hash, network_hash)
     bundle = load_basis(basis_signature[0], vertices_mm=vertices_mm, faces=simulator.faces)
     network_coefficients = None
+    maps = None
     if network_signature is not None:
         network_path = network_signature[0]
         with np.load(network_path, allow_pickle=False) as data:
@@ -303,10 +314,11 @@ def _load_assets(simulator, resolved, source_model):
             maps = np.asarray(data['source_prior_weights'], dtype=float)
         network_coefficients = project_maps(bundle, maps)
         network_coefficients.setflags(write=False)
+        maps.setflags(write=False)
     for values in bundle.values():
         if isinstance(values, np.ndarray):
             values.setflags(write=False)
-    cached = dict(key=key, bundle=bundle, network_coefficients=network_coefficients,
+    cached = dict(key=key, bundle=bundle, network_coefficients=network_coefficients, network_maps=maps,
                   basis_sha256=basis_hash, network_sha256=network_hash)
     simulator._spectral_asset_cache = cached
     return cached
@@ -411,6 +423,15 @@ def generate_source_components(simulator, config, *, components=None):
     if config.source_snr_db is not None or config.source_background_type is not None:
         raise ValueError('Spectral sources use erp_amplitude/ersp_depth, not legacy source SNR/background settings')
     assets = _load_assets(simulator, resolved, config.source_model)
+    if resolved['erp_spatial_mode'] == 'geodesic':
+        if config.source_model != 'lbo_network':
+            raise ValueError('geodesic ERP requires source_model=lbo_network')
+        if multiscale['fraction']:
+            raise ValueError('geodesic ERP does not yet support multiscale foreground residuals')
+        if 'erp_amplitude' in config.spectral:
+            raise ValueError('geodesic ERP uses erp_roi_power_ratio, not erp_amplitude')
+        from .network_erp import generate_components
+        return generate_components(simulator, config, resolved, assets, components=components)
     bundle = assets['bundle']
     network_coefficients = assets['network_coefficients']
     if config.source_model != 'lbo_network':
